@@ -150,12 +150,70 @@ class RestApi {
         $results = $engine->query_items($args);
         $execution_time = round((microtime(true) - $start_time) * 1000, 2); // ms
 
-        if (!$results) {
-            return new \WP_REST_Response(array(
-                'success' => false,
-                'message' => 'Query error or empty index',
-            ), 500);
+        // Compile HTML of the results on the server-side using standard templates for perfect theme compatibility
+        $html = '';
+        ob_start();
+        if ($results && !empty($results['ids'])) {
+            $loop_args = array(
+                'post_type'      => $args['post_type'],
+                'post__in'       => $results['ids'],
+                'orderby'        => 'post__in',
+                'posts_per_page' => -1,
+                'post_status'    => 'publish',
+            );
+            
+            $loop_query = new \WP_Query($loop_args);
+            
+            if ($loop_query->have_posts()) {
+                if (function_exists('woocommerce_product_loop_start') && $args['post_type'] === 'product') {
+                    woocommerce_product_loop_start();
+                } else {
+                    echo '<div class="uwo-results-grid">';
+                }
+                
+                while ($loop_query->have_posts()) {
+                    $loop_query->the_post();
+                    
+                    if ($args['post_type'] === 'product' && function_exists('wc_get_template_part')) {
+                        wc_get_template_part('content', 'product');
+                    } else {
+                        // Standard WordPress fallback
+                        ?>
+                        <article id="post-<?php the_ID(); ?>" <?php post_class(); ?>>
+                            <?php if (has_post_thumbnail()) : ?>
+                                <div class="post-thumbnail">
+                                    <a href="<?php the_permalink(); ?>"><?php the_post_thumbnail('medium'); ?></a>
+                                </div>
+                            <?php endif; ?>
+                            <h2><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2>
+                            <div class="entry-summary"><?php the_excerpt(); ?></div>
+                        </article>
+                        <?php
+                    }
+                }
+                
+                if (function_exists('woocommerce_product_loop_end') && $args['post_type'] === 'product') {
+                    woocommerce_product_loop_end();
+                } else {
+                    echo '</div>';
+                }
+                
+                wp_reset_postdata();
+            } else {
+                if (function_exists('wc_get_template') && $args['post_type'] === 'product') {
+                    wc_get_template('loop/no-products-found.php');
+                } else {
+                    echo '<p class="woocommerce-info" style="text-align: center;">Không tìm thấy sản phẩm nào khớp với lựa chọn của bạn.</p>';
+                }
+            }
+        } else {
+            if (function_exists('wc_get_template') && $args['post_type'] === 'product') {
+                wc_get_template('loop/no-products-found.php');
+            } else {
+                echo '<p class="woocommerce-info" style="text-align: center;">Không tìm thấy sản phẩm nào khớp với lựa chọn của bạn.</p>';
+            }
         }
+        $html = ob_get_clean();
 
         return new \WP_REST_Response(array(
             'success'        => true,
@@ -163,6 +221,7 @@ class RestApi {
             'total'          => $results['total'],
             'pages'          => ceil($results['total'] / $args['posts_per_page']),
             'current_page'   => $args['paged'],
+            'html'           => $html,
             'data'           => $results['payloads'],
         ), 200);
     }
