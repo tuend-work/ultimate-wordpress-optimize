@@ -174,15 +174,20 @@ class QueryEngine {
                 if (is_array($tax) && isset($tax['taxonomy']) && isset($tax['terms'])) {
                     $taxonomy = $tax['taxonomy'];
                     $terms = (array) $tax['terms'];
+                    $operator = isset($tax['operator']) ? strtoupper($tax['operator']) : 'IN';
+                    $is_not = (strpos($operator, 'NOT') !== false);
+                    
                     $tax_clauses = array();
                     foreach ($terms as $term) {
                         $slug = is_numeric($term) ? get_term($term)->slug : $term;
                         if ($slug) {
-                            $tax_clauses[] = $wpdb->prepare("attributes_filter LIKE %s", '%' . $wpdb->esc_like('tax_' . $taxonomy . '_' . $slug) . '%');
+                            $like_op = $is_not ? 'NOT LIKE' : 'LIKE';
+                            $tax_clauses[] = $wpdb->prepare("attributes_filter {$like_op} %s", '%' . $wpdb->esc_like('tax_' . $taxonomy . '_' . $slug) . '%');
                         }
                     }
                     if (!empty($tax_clauses)) {
-                        $where[] = '(' . implode(' OR ', $tax_clauses) . ')';
+                        $glue = $is_not ? ' AND ' : ' OR ';
+                        $where[] = '(' . implode($glue, $tax_clauses) . ')';
                     }
                 }
             }
@@ -302,6 +307,9 @@ class QueryEngine {
                 if (is_array($tax) && isset($tax['taxonomy']) && isset($tax['terms'])) {
                     $taxonomy = $tax['taxonomy'];
                     $terms = (array) $tax['terms'];
+                    $operator = isset($tax['operator']) ? strtoupper($tax['operator']) : 'IN';
+                    $is_not = (strpos($operator, 'NOT') !== false);
+                    
                     $term_clauses = array();
                     foreach ($terms as $term) {
                         $slug = is_numeric($term) ? get_term($term)->slug : $term;
@@ -310,7 +318,7 @@ class QueryEngine {
                         }
                     }
                     if (!empty($term_clauses)) {
-                        $must[] = array(
+                        $clause = array(
                             'match' => array(
                                 'attributes_filter' => array(
                                     'query' => implode(' ', $term_clauses),
@@ -318,6 +326,11 @@ class QueryEngine {
                                 )
                             )
                         );
+                        if ($is_not) {
+                            $query_body['query']['bool']['must_not'][] = $clause;
+                        } else {
+                            $must[] = $clause;
+                        }
                     }
                 }
             }
