@@ -199,7 +199,11 @@ if ($db_online) {
                             ?>
                                 <div class="uwo-filter-row" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:12px; padding:15px; display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap;">
                                     <div>
-                                        <h4 style="margin:0 0 5px 0; color:#f8fafc; font-size:0.98rem; font-weight:600;"><?php echo esc_html($f['name']); ?> <span style="font-size:11px; font-weight:400; color:#94a3b8; background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:99px; margin-left:5px; text-transform:uppercase;"><?php echo esc_html($f['post_type']); ?></span></h4>
+                                        <h4 style="margin:0 0 5px 0; color:#f8fafc; font-size:0.98rem; font-weight:600;">
+                                            <?php echo esc_html($f['name']); ?> 
+                                            <span style="font-size:11px; font-weight:400; color:#94a3b8; background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:99px; margin-left:5px; text-transform:uppercase;"><?php echo esc_html($f['post_type']); ?></span>
+                                            <span style="font-size:11px; font-weight:400; color:#c084fc; background:rgba(139,92,246,0.1); padding:2px 8px; border-radius:99px; margin-left:5px; text-transform:uppercase; border:1px solid rgba(139,92,246,0.2);"><?php echo !empty($f['layout']) ? esc_html($f['layout']) : 'vertical'; ?></span>
+                                        </h4>
                                         <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
                                             <span style="font-size:11px; color:#64748b; margin-right:5px;">Columns:</span>
                                             <?php echo implode('', $chips); ?>
@@ -225,7 +229,7 @@ if ($db_online) {
                     <form id="uwo-filter-builder-form">
                         <?php wp_nonce_field('uwo-filter-builder-nonce', 'security'); ?>
                         
-                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px; margin-bottom:25px;">
+                        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:20px; margin-bottom:25px;">
                             <div class="uwo-form-group" style="margin:0;">
                                 <label style="font-weight:600; color:#cbd5e1;">Filter Name</label>
                                 <input type="text" name="name" required placeholder="e.g. Shop Side Catalog Filter" style="background: rgba(255,255,255,0.03);" />
@@ -238,6 +242,13 @@ if ($db_online) {
                                     ?>
                                         <option value="<?php echo esc_attr($slug); ?>"><?php echo esc_html($obj->labels->name); ?></option>
                                     <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="uwo-form-group" style="margin:0;">
+                                <label style="font-weight:600; color:#cbd5e1;">Filter Layout Mode</label>
+                                <select name="layout" style="background: rgba(255,255,255,0.03);">
+                                    <option value="vertical">Vertical (Dọc)</option>
+                                    <option value="horizontal">Horizontal (Ngang)</option>
                                 </select>
                             </div>
                         </div>

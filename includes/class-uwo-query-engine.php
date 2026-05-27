@@ -224,13 +224,29 @@ class QueryEngine {
                         }
 
                         if (!empty($col)) {
-                            if ($compare === '=') {
-                                $where[] = $wpdb->prepare("`{$col}` = %s", $value);
-                            } elseif ($compare === 'IN' && is_array($value)) {
-                                $escaped_vals = array_map('esc_sql', $value);
-                                $where[] = "`{$col}` IN ('" . implode("','", $escaped_vals) . "')";
-                            } elseif ($compare === 'LIKE') {
-                                $where[] = $wpdb->prepare("`{$col}` LIKE %s", '%' . $wpdb->esc_like($value) . '%');
+                            // If it is a taxonomy JSON array column (starts with tax_)
+                            if (strpos($col, 'tax_') === 0) {
+                                if ($compare === 'IN' && is_array($value)) {
+                                    $clauses = array();
+                                    foreach ($value as $val) {
+                                        $clauses[] = $wpdb->prepare("`{$col}` LIKE %s", '%' . $wpdb->esc_like('"' . $val . '"') . '%');
+                                    }
+                                    if (!empty($clauses)) {
+                                        $where[] = '(' . implode(' OR ', $clauses) . ')';
+                                    }
+                                } else {
+                                    $val = is_array($value) ? $value[0] : $value;
+                                    $where[] = $wpdb->prepare("`{$col}` LIKE %s", '%' . $wpdb->esc_like('"' . $val . '"') . '%');
+                                }
+                            } else {
+                                if ($compare === '=') {
+                                    $where[] = $wpdb->prepare("`{$col}` = %s", $value);
+                                } elseif ($compare === 'IN' && is_array($value)) {
+                                    $escaped_vals = array_map('esc_sql', $value);
+                                    $where[] = "`{$col}` IN ('" . implode("','", $escaped_vals) . "')";
+                                } elseif ($compare === 'LIKE') {
+                                    $where[] = $wpdb->prepare("`{$col}` LIKE %s", '%' . $wpdb->esc_like($value) . '%');
+                                }
                             }
                         }
                     }
@@ -380,12 +396,22 @@ class QueryEngine {
                         }
 
                         if (!empty($col)) {
-                            if ($compare === '=') {
-                                $filter[] = array('term' => array($col => $value));
-                            } elseif ($compare === 'IN' && is_array($value)) {
-                                $filter[] = array('terms' => array($col => $value));
-                            } elseif ($compare === 'LIKE') {
-                                $must[] = array('match' => array($col => $value));
+                            // If it is a taxonomy JSON array column (starts with tax_)
+                            if (strpos($col, 'tax_') === 0) {
+                                if ($compare === 'IN' && is_array($value)) {
+                                    $filter[] = array('terms' => array($col => $value));
+                                } else {
+                                    $val = is_array($value) ? $value[0] : $value;
+                                    $filter[] = array('term' => array($col => $val));
+                                }
+                            } else {
+                                if ($compare === '=') {
+                                    $filter[] = array('term' => array($col => $value));
+                                } elseif ($compare === 'IN' && is_array($value)) {
+                                    $filter[] = array('terms' => array($col => $value));
+                                } elseif ($compare === 'LIKE') {
+                                    $must[] = array('match' => array($col => $value));
+                                }
                             }
                         }
                     }

@@ -152,11 +152,14 @@ class FilterBuilder {
             }
         }
 
+        $layout = !empty($_POST['layout']) ? sanitize_key($_POST['layout']) : 'vertical';
+
         $filters = self::get_all_filters();
         $filters[$filter_id] = array(
             'id'        => $filter_id,
             'name'      => $name,
             'post_type' => $post_type,
+            'layout'    => $layout,
             'fields'    => $fields,
             'created'   => current_time('mysql')
         );
@@ -236,9 +239,15 @@ class FilterBuilder {
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
             }
-            .uwo-fe-filter-grid {
+            .uwo-fe-filter-grid.horizontal {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+            .uwo-fe-filter-grid.vertical {
+                display: grid;
+                grid-template-columns: 1fr;
                 gap: 20px;
                 margin-bottom: 20px;
             }
@@ -385,12 +394,13 @@ class FilterBuilder {
             }
         </style>
 
+        <?php $layout = !empty($filter['layout']) ? $filter['layout'] : 'vertical'; ?>
         <div class="uwo-fe-filter-container">
             <h3 class="uwo-fe-filter-title"><?php echo esc_html($filter['name']); ?></h3>
             <form id="<?php echo $unique_form_id; ?>" class="uwo-fe-filter-form">
                 <input type="hidden" name="post_type" value="<?php echo esc_attr($post_type); ?>" />
                 
-                <div class="uwo-fe-filter-grid">
+                <div class="uwo-fe-filter-grid <?php echo esc_attr($layout); ?>">
                     <?php foreach ($filter['fields'] as $column => $settings) : 
                         $label = $settings['label'];
                         $type = $settings['type'];

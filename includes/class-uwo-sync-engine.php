@@ -128,18 +128,21 @@ class SyncEngine {
             }
         }
 
-        // 2. Fetch taxonomies and map primary category
+        // 2. Fetch taxonomies and map primary category & dynamic physical columns
         $taxonomies = get_object_taxonomies($post_type, 'names');
         $primary_cat_id = 0;
         $all_terms = array();
         $attrs = array();
+        $taxonomy_slugs = array();
 
         foreach ($taxonomies as $taxonomy) {
             $terms = wp_get_post_terms($post_id, $taxonomy, array('fields' => 'all'));
+            $slugs = array();
             if (!is_wp_error($terms) && !empty($terms)) {
                 foreach ($terms as $term) {
                     $all_terms[] = $term->name;
                     $attrs[] = 'tax_' . $taxonomy . '_' . $term->slug;
+                    $slugs[] = $term->slug;
 
                     // Assign primary category (product_cat for WooCommerce, category for CPT)
                     if ($primary_cat_id === 0 && ($taxonomy === 'product_cat' || $taxonomy === 'category')) {
@@ -147,6 +150,7 @@ class SyncEngine {
                     }
                 }
             }
+            $taxonomy_slugs[$taxonomy] = $slugs;
         }
         $attributes_filter = implode(' ', $attrs);
 
@@ -202,6 +206,17 @@ class SyncEngine {
         // Dynamic Column Engine: Check and create columns for existing custom fields on the fly during sync
         $columns = $db->get_table_columns();
         $columns_updated = false;
+        
+        // 1. Create taxonomy dynamic columns (tax_*)
+        foreach ($taxonomy_slugs as $tax_name => $slugs) {
+            $column_name = 'tax_' . sanitize_key($tax_name);
+            if (!in_array($column_name, $columns, true)) {
+                $db->add_dynamic_column($column_name);
+                $columns_updated = true;
+            }
+        }
+
+        // 2. Create Custom Field dynamic columns (cf_*)
         foreach ($custom_fields_payload as $key => $val) {
             $column_name = 'cf_' . sanitize_key($key);
             if (!in_array($column_name, $columns, true)) {
@@ -209,6 +224,7 @@ class SyncEngine {
                 $columns_updated = true;
             }
         }
+
         if ($columns_updated) {
             $columns = $db->get_table_columns(true);
         }
@@ -229,9 +245,16 @@ class SyncEngine {
             'updated_at' => current_time('mysql')
         );
 
-        // Map ACF and other dynamic columns
+        // Map ACF, Taxonomies, and other dynamic columns
         foreach ($columns as $column) {
-            if (strpos($column, 'cf_') === 0) {
+            if (strpos($column, 'tax_') === 0) {
+                $tax_name = substr($column, 4);
+                if (isset($taxonomy_slugs[$tax_name])) {
+                    $data[$column] = wp_json_encode($taxonomy_slugs[$tax_name]);
+                } else {
+                    $data[$column] = null;
+                }
+            } elseif (strpos($column, 'cf_') === 0) {
                 $meta_key = substr($column, 3);
                 if (isset($custom_fields_payload[$meta_key])) {
                     $val = $custom_fields_payload[$meta_key];
