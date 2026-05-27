@@ -17,59 +17,32 @@ if (!defined('WPINC')) {
 }
 
 define('UWO_VERSION', '1.0.0');
-define('UWO_PATH', plugin_dir_path(__FILE__));
+define('UWO_PATH', str_replace('\\', '/', plugin_dir_path(__FILE__)));
 define('UWO_URL', plugin_dir_url(__FILE__));
 
-// Register Custom Autoloader for UWO Namespace
-spl_autoload_register(function ($class) {
-    if (strpos($class, 'UWO\\') !== 0) {
-        return;
-    }
+// Diagnostics check to prevent hard Fatal Errors and show dynamic feedback
+if (!@file_exists(UWO_PATH . 'includes/class-uwo-activator.php')) {
+    $available_files = @scandir(UWO_PATH);
+    wp_die(
+        '<h3>Ultimate WordPress Optimize - Diagnostic Report</h3>' .
+        '<p><strong>Error:</strong> Cannot find the core file <code>includes/class-uwo-activator.php</code> on your server.</p>' .
+        '<p><strong>Plugin Path:</strong> <code>' . esc_html(UWO_PATH) . '</code></p>' .
+        '<p><strong>Files present in this folder on your server:</strong></p>' .
+        '<pre>' . esc_html(print_r($available_files, true)) . '</pre>' .
+        '<p><em>Please make sure you have uploaded the entire plugin folder (including <code>includes/</code>, <code>admin/</code>, and <code>templates/</code> directories) to your WordPress plugins folder.</em></p>'
+    );
+}
 
-    $relative_class = substr($class, 4);
-    $parts = explode('\\', $relative_class);
-    $class_name = array_pop($parts);
-
-    // Convert CamelCase/PascalCase to kebab-case
-    $kebab_class_name = strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $class_name));
-    $kebab_class_name = str_replace('_', '-', $kebab_class_name);
-    
-    // Correct potential double dashes or other issues
-    $kebab_class_name = preg_replace('/-+/', '-', $kebab_class_name);
-    
-    $file_name = 'class-uwo-' . $kebab_class_name . '.php';
-
-    // Check if the class resides in admin folder or is Admin itself
-    if ($class_name === 'Admin' || (!empty($parts) && strtolower($parts[0]) === 'admin')) {
-        $file_path = UWO_PATH . 'admin/' . $file_name;
-    } else {
-        $subpath = '';
-        if (!empty($parts)) {
-            $subpath = implode('/', array_map(function($part) {
-                return strtolower(str_replace('_', '-', preg_replace('/(?<!^)[A-Z]/', '-$0', $part)));
-            }, $parts)) . '/';
-        }
-        $file_path = UWO_PATH . 'includes/' . $subpath . $file_name;
-    }
-
-    if (file_exists($file_path)) {
-        require_once $file_path;
-        return;
-    }
-
-    // Dynamic double check fallback: search other directory if not found
-    if (strpos($file_path, '/includes/') !== false) {
-        $fallback = str_replace('/includes/', '/admin/', $file_path);
-        if (file_exists($fallback)) {
-            require_once $fallback;
-        }
-    } elseif (strpos($file_path, '/admin/') !== false) {
-        $fallback = str_replace('/admin/', '/includes/', $file_path);
-        if (file_exists($fallback)) {
-            require_once $fallback;
-        }
-    }
-});
+// Explicitly import all plugin files with exact names and paths
+require_once UWO_PATH . 'includes/class-uwo-activator.php';
+require_once UWO_PATH . 'includes/class-uwo-deactivator.php';
+require_once UWO_PATH . 'includes/class-uwo-database.php';
+require_once UWO_PATH . 'includes/class-uwo-redis.php';
+require_once UWO_PATH . 'includes/class-uwo-open-search.php';
+require_once UWO_PATH . 'includes/class-uwo-sync-engine.php';
+require_once UWO_PATH . 'includes/class-uwo-query-engine.php';
+require_once UWO_PATH . 'includes/class-uwo-rest-api.php';
+require_once UWO_PATH . 'admin/class-uwo-admin.php';
 
 // Activation & Deactivation Hooks
 register_activation_hook(__FILE__, 'uwo_activate_plugin');
