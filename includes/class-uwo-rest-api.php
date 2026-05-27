@@ -198,23 +198,50 @@ class RestApi {
                     echo '</div>';
                 }
 
-                // Render standard pagination links for perfect archive layout integration
+                // Render standard pagination links using theme/WooCommerce native templates
                 $total_pages = ceil($results['total'] / $args['posts_per_page']);
                 if ($total_pages > 1) {
-                    $big = 999999999;
-                    echo '<nav class="woocommerce-pagination pagination" style="width: 100%; text-align: center; margin-top: 30px;">';
-                    echo paginate_links(array(
-                        'base'      => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
-                        'format'    => '?paged=%#%',
-                        'current'   => max(1, $args['paged']),
-                        'total'     => $total_pages,
-                        'prev_text' => '&larr;',
-                        'next_text' => '&rarr;',
-                        'type'      => 'list',
-                        'end_size'  => 3,
-                        'mid_size'  => 3
-                    ));
-                    echo '</nav>';
+                    global $wp_query;
+                    $original_wp_query = $wp_query;
+
+                    $mock_query = new \WP_Query();
+                    $mock_query->max_num_pages = $total_pages;
+                    $mock_query->query_vars['paged'] = max(1, $args['paged']);
+                    $mock_query->found_posts = $results['total'];
+                    $mock_query->posts_per_page = $args['posts_per_page'];
+                    
+                    $wp_query = $mock_query;
+
+                    $orig_total_pages = null;
+                    $orig_current_page = null;
+                    $had_loop_prop = false;
+
+                    if ($args['post_type'] === 'product' && function_exists('wc_set_loop_prop') && function_exists('wc_get_loop_prop')) {
+                        $orig_total_pages = wc_get_loop_prop('total_pages');
+                        $orig_current_page = wc_get_loop_prop('current_page');
+                        wc_set_loop_prop('total_pages', $total_pages);
+                        wc_set_loop_prop('current_page', max(1, $args['paged']));
+                        $had_loop_prop = true;
+                    }
+
+                    if ($args['post_type'] === 'product' && function_exists('woocommerce_pagination')) {
+                        // Output WooCommerce native pagination template (loads loop/pagination.php)
+                        woocommerce_pagination();
+                    } else {
+                        // Standard WordPress/Theme fallback using default pagination template
+                        the_posts_pagination(array(
+                            'prev_text'          => '&larr;',
+                            'next_text'          => '&rarr;',
+                            'screen_reader_text' => ' ', // hide screen reader heading
+                        ));
+                    }
+
+                    // Restore original global $wp_query and loop properties to avoid side-effects
+                    $wp_query = $original_wp_query;
+                    if ($had_loop_prop) {
+                        wc_set_loop_prop('total_pages', $orig_total_pages);
+                        wc_set_loop_prop('current_page', $orig_current_page);
+                    }
                 }
                 
                 wp_reset_postdata();
