@@ -39,8 +39,8 @@ spl_autoload_register(function ($class) {
     
     $file_name = 'class-uwo-' . $kebab_class_name . '.php';
 
-    // Check if the class resides in admin folder
-    if (!empty($parts) && strtolower($parts[0]) === 'admin') {
+    // Check if the class resides in admin folder or is Admin itself
+    if ($class_name === 'Admin' || (!empty($parts) && strtolower($parts[0]) === 'admin')) {
         $file_path = UWO_PATH . 'admin/' . $file_name;
     } else {
         $subpath = '';
@@ -54,6 +54,20 @@ spl_autoload_register(function ($class) {
 
     if (file_exists($file_path)) {
         require_once $file_path;
+        return;
+    }
+
+    // Dynamic double check fallback: search other directory if not found
+    if (strpos($file_path, '/includes/') !== false) {
+        $fallback = str_replace('/includes/', '/admin/', $file_path);
+        if (file_exists($fallback)) {
+            require_once $fallback;
+        }
+    } elseif (strpos($file_path, '/admin/') !== false) {
+        $fallback = str_replace('/admin/', '/includes/', $file_path);
+        if (file_exists($fallback)) {
+            require_once $fallback;
+        }
     }
 });
 
