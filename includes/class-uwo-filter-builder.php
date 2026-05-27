@@ -573,14 +573,14 @@ class FilterBuilder {
                     });
                 }
 
-                // Submit Form Event (Delegated to document for persistent DOM-swaps)
-                $(document).on('submit', '#' + uniqueFormId, function(e) {
+                // Submit Form Event (Delegated to document with unique namespace to prevent duplicate event accumulation)
+                $(document).off('submit.uwo_' + uniqueFormId).on('submit.uwo_' + uniqueFormId, '#' + uniqueFormId, function(e) {
                     e.preventDefault();
                     performSearch(1); // Starting new filter always resets to page 1
                 });
 
                 // Whenever any field changes, submit the form to reset to page 1 using robust delegated events
-                $(document).on('change', '#' + uniqueFormId + ' input, #' + uniqueFormId + ' select', function() {
+                $(document).off('change.uwo_' + uniqueFormId).on('change.uwo_' + uniqueFormId, '#' + uniqueFormId + ' input, #' + uniqueFormId + ' select', function() {
                     var inputType = $(this).attr('type');
                     if (inputType === 'text' || inputType === 'number') {
                         return; // Ignore typing in search or price range boxes (allow typing multi-digit numbers freely)
@@ -589,7 +589,7 @@ class FilterBuilder {
                 });
 
                 // Intercept AJAX pagination link clicks inside the dynamic results wrapper or body
-                $(document).on('click', '.woocommerce-pagination a, .pagination a, .navigation.pagination a', function(e) {
+                $(document).off('click.uwo_' + uniqueFormId).on('click.uwo_' + uniqueFormId, '.woocommerce-pagination a, .pagination a, .navigation.pagination a', function(e) {
                     var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
                     if (!enableAjax) {
                         return; // Let GET link trigger redirect naturally
@@ -618,14 +618,6 @@ class FilterBuilder {
 
                     // Perform search for the clicked page!
                     performSearch(pageNum);
-
-                    // Smooth scroll back to form
-                    var $form = $('#' + uniqueFormId);
-                    if ($form.length > 0) {
-                        $('html, body').animate({
-                            scrollTop: $form.offset().top - 100
-                        }, 500);
-                    }
                 });
             });
         </script>
