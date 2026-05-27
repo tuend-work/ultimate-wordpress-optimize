@@ -507,25 +507,59 @@ class FilterBuilder {
                     var newUrl = cleanBaseUrl + (queryString ? '?' + queryString : '');
                     window.history.pushState({ path: newUrl }, '', newUrl);
 
-                    // Build request query parameters
-                    var requestUrl = '<?php echo esc_url(get_rest_url(null, 'uwo/v1/search')); ?>';
+                    // Query the exact pretty URL with query args, fetching the full compiled page from the server
+                    var requestUrl = newUrl;
                     
                     $results.css('opacity', '0.5');
 
                     $.ajax({
                         url: requestUrl,
                         method: 'GET',
-                        data: params,
                         success: function(response) {
-                            $results.css('opacity', '1').empty();
-                            if (response.success && response.html) {
-                                $results.html(response.html);
+                            $results.css('opacity', '1');
+                            
+                            // Safe parsing of the full HTML response without executing scripts or duplicate trackers
+                            var parsedHtml = $.parseHTML(response, null, false);
+                            var $parsed = $('<div>').append(parsedHtml);
+                            
+                            var selector = isArchive ? '.uwo-archive-wrapper' : '#<?php echo $unique_form_id; ?>-results';
+                            var $newContent = $parsed.find(selector);
+                            
+                            if ($newContent.length > 0) {
+                                $results.html($newContent.html());
                             } else {
-                                $results.append('<p class="woocommerce-info" style="width: 100%; text-align: center;">Không tìm thấy sản phẩm nào khớp với lựa chọn của bạn.</p>');
+                                // Fallback in case the wrapper isn't found in the response
+                                var $fallbackContent = $parsed.find('.products.row, ul.products, .products');
+                                if ($fallbackContent.length > 0) {
+                                    $results.html($fallbackContent.parent().html());
+                                } else {
+                                    $results.empty().append('<p class="woocommerce-info" style="width: 100%; text-align: center;">Không tìm thấy sản phẩm nào khớp với lựa chọn của bạn.</p>');
+                                }
                             }
+                            
+                            // Dynamically update standard WooCommerce archive widgets like result counts and ordering dropdowns
+                            var components = [
+                                '.woocommerce-result-count',
+                                '.woocommerce-ordering',
+                                '.woocommerce-pagination',
+                                '.pagination'
+                            ];
+                            
+                            $.each(components, function(_, compSelector) {
+                                // Only update components that are outside the results container on the page
+                                if ($(compSelector).closest(selector).length === 0) {
+                                    var $newComp = $parsed.find(compSelector).first();
+                                    if ($newComp.length > 0) {
+                                        $(compSelector).first().replaceWith($newComp);
+                                    } else {
+                                        $(compSelector).first().hide();
+                                    }
+                                }
+                            });
                         },
                         error: function() {
-                            $results.css('opacity', '1').empty().append('<p style="width: 100%; text-align: center; color: #ef4444;">Failed to fetch results. Check console.</p>');
+                            $results.css('opacity', '1');
+                            $results.empty().append('<p style="width: 100%; text-align: center; color: #ef4444;">Failed to fetch results. Check console.</p>');
                         }
                     });
                 }
