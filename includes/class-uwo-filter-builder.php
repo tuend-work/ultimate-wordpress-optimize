@@ -610,10 +610,6 @@ class FilterBuilder {
                     }, 500);
                 });
 
-                // Auto-submit only on custom pages where there is no pre-rendered loop
-                if (!isArchive) {
-                    performSearch(1);
-                }
             });
         </script>
         <?php
