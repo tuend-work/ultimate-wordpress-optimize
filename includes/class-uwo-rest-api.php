@@ -276,16 +276,44 @@ class RestApi {
             ), 403);
         }
 
-        $repo_zip_url = 'https://github.com/tuend-work/ultimate-wordpress-optimize/archive/refs/heads/main.zip';
+        $urls = array(
+            'https://codeload.github.com/tuend-work/ultimate-wordpress-optimize/zip/refs/heads/main',
+            'https://github.com/tuend-work/ultimate-wordpress-optimize/archive/refs/heads/main.zip',
+            'https://api.github.com/repos/tuend-work/ultimate-wordpress-optimize/zipball/main'
+        );
+
+        $tmp_file = null;
+        $download_error = '';
 
         require_once ABSPATH . 'wp-admin/includes/file.php';
-        
-        // 1. Download the ZIP file using standard WordPress download_url
-        $tmp_file = download_url($repo_zip_url);
-        if (is_wp_error($tmp_file)) {
+
+        foreach ($urls as $url_option) {
+            // Spoof modern user agent and bypass SSL verification for GitHub downloads (prevents 403/404 block from GitHub)
+            $ua_filter = function($args, $url) {
+                $args['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 UWO-Plugin-Updater';
+                $args['sslverify'] = false;
+                $args['timeout'] = 45;
+                return $args;
+            };
+            add_filter('http_request_args', $ua_filter, 10, 2);
+
+            // 1. Download the ZIP file using standard WordPress download_url
+            $tmp_file = download_url($url_option);
+            
+            // Remove the filter immediately after download to keep WordPress requests clean
+            remove_filter('http_request_args', $ua_filter);
+
+            if (!is_wp_error($tmp_file)) {
+                break; // Download succeeded!
+            } else {
+                $download_error = $tmp_file->get_error_message();
+            }
+        }
+
+        if (is_wp_error($tmp_file) || !$tmp_file) {
             return new \WP_REST_Response(array(
                 'success' => false,
-                'message' => sprintf(__('Failed to download zip: %s', 'ultimate-wordpress-optimize'), $tmp_file->get_error_message()),
+                'message' => sprintf(__('Failed to download zip (tried all endpoints): %s', 'ultimate-wordpress-optimize'), $download_error),
             ), 500);
         }
 
