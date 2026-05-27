@@ -284,15 +284,24 @@ class RestApi {
 
         $tmp_file = null;
         $download_error = '';
+        $github_token = defined('UWO_GITHUB_TOKEN') ? UWO_GITHUB_TOKEN : '';
 
         require_once ABSPATH . 'wp-admin/includes/file.php';
 
         foreach ($urls as $url_option) {
             // Spoof modern user agent and bypass SSL verification for GitHub downloads (prevents 403/404 block from GitHub)
-            $ua_filter = function($args, $url) {
+            $ua_filter = function($args, $url) use ($github_token) {
                 $args['user-agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 UWO-Plugin-Updater';
                 $args['sslverify'] = false;
                 $args['timeout'] = 45;
+
+                // Add Authorization header if private repository token is defined in wp-config.php
+                if (!empty($github_token)) {
+                    if (!isset($args['headers'])) {
+                        $args['headers'] = array();
+                    }
+                    $args['headers']['Authorization'] = 'token ' . $github_token;
+                }
                 return $args;
             };
             add_filter('http_request_args', $ua_filter, 10, 2);
