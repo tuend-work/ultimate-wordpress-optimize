@@ -197,6 +197,25 @@ class RestApi {
                 } else {
                     echo '</div>';
                 }
+
+                // Render standard pagination links for perfect archive layout integration
+                $total_pages = ceil($results['total'] / $args['posts_per_page']);
+                if ($total_pages > 1) {
+                    $big = 999999999;
+                    echo '<nav class="woocommerce-pagination pagination" style="width: 100%; text-align: center; margin-top: 30px;">';
+                    echo paginate_links(array(
+                        'base'      => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+                        'format'    => '?paged=%#%',
+                        'current'   => max(1, $args['paged']),
+                        'total'     => $total_pages,
+                        'prev_text' => '&larr;',
+                        'next_text' => '&rarr;',
+                        'type'      => 'list',
+                        'end_size'  => 3,
+                        'mid_size'  => 3
+                    ));
+                    echo '</nav>';
+                }
                 
                 wp_reset_postdata();
             } else {

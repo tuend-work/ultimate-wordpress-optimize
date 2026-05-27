@@ -366,21 +366,26 @@ class FilterBuilder {
                     $('.woocommerce-pagination, .pagination').hide();
                 }
 
-                $form.on('submit', function(e) {
+                function performSearch(pageNum) {
                     var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
                     if (!enableAjax) {
-                        // Let GET submit redirect normally
+                        // Standard non-AJAX query submit
+                        var $pagedField = $form.find('input[name="paged"]');
+                        if ($pagedField.length === 0) {
+                            $form.append('<input type="hidden" name="paged" value="' + pageNum + '" />');
+                        } else {
+                            $pagedField.val(pageNum);
+                        }
+                        $form[0].submit();
                         return;
                     }
 
-                    e.preventDefault();
-                    
                     // Serialize form parameters
                     var formData = $form.serializeArray();
                     var params = {};
 
                     $.each(formData, function(_, field) {
-                        if (field.value === "") return;
+                        if (field.value === "" || field.name === "paged") return;
                         
                         // Handle multiple checkboxes arrays
                         if (field.name.endsWith('[]')) {
@@ -393,6 +398,21 @@ class FilterBuilder {
                             params[field.name] = field.value;
                         }
                     });
+
+                    // Add page parameter explicitly
+                    params['page'] = pageNum || 1;
+
+                    // Update browser address bar in real-time
+                    var currentUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    var urlParams = $.extend({}, params);
+                    if (pageNum > 1) {
+                        urlParams['paged'] = pageNum;
+                    }
+                    delete urlParams['page'];
+                    
+                    var queryString = $.param(urlParams);
+                    var newUrl = currentUrl + (queryString ? '?' + queryString : '');
+                    window.history.pushState({ path: newUrl }, '', newUrl);
 
                     // Build request query parameters
                     var requestUrl = '<?php echo esc_url(get_rest_url(null, 'uwo/v1/search')); ?>';
@@ -415,11 +435,54 @@ class FilterBuilder {
                             $results.css('opacity', '1').empty().append('<p style="width: 100%; text-align: center; color: #ef4444;">Failed to fetch results. Check console.</p>');
                         }
                     });
+                }
+
+                // Submit Form Event
+                $form.on('submit', function(e) {
+                    e.preventDefault();
+                    performSearch(1); // Starting new filter always resets to page 1
+                });
+
+                // Whenever any field changes, submit the form to reset to page 1
+                $form.find('input, select').on('change', function() {
+                    if ($(this).attr('type') === 'text') return;
+                    $form.trigger('submit');
+                });
+
+                // Intercept AJAX pagination link clicks inside results wrapper
+                $results.on('click', '.woocommerce-pagination a, .pagination a', function(e) {
+                    var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
+                    if (!enableAjax) {
+                        return; // Let GET link trigger redirect naturally
+                    }
+
+                    e.preventDefault();
+                    var url = $(this).attr('href');
+                    if (!url) return;
+
+                    var pageNum = 1;
+                    var match = url.match(/paged=(\d+)/);
+                    if (match && match[1]) {
+                        pageNum = parseInt(match[1]);
+                    } else {
+                        match = url.match(/\/page\/(\d+)/);
+                        if (match && match[1]) {
+                            pageNum = parseInt(match[1]);
+                        }
+                    }
+
+                    // Perform search for the clicked page!
+                    performSearch(pageNum);
+
+                    // Smooth scroll back to form
+                    $('html, body').animate({
+                        scrollTop: $form.offset().top - 100
+                    }, 500);
                 });
 
                 // Auto-submit only on custom pages where there is no pre-rendered loop
                 if (!isArchive) {
-                    $form.trigger('submit');
+                    performSearch(1);
                 }
             });
         </script>
