@@ -353,4 +353,4 @@ class FilterBuilder {
         <?php
         return ob_get_clean();
     }
-}}
+}
