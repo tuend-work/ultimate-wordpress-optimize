@@ -352,6 +352,8 @@ class FilterBuilder {
             jQuery(document).ready(function($) {
                 var $form = $('#<?php echo $unique_form_id; ?>');
                 var $results = $('#<?php echo $unique_form_id; ?>-results');
+                var currentTax = '<?php echo esc_js($current_tax); ?>';
+                var currentTerm = '<?php echo esc_js($current_term); ?>';
 
                 // Detect native WooCommerce products container
                 var $shopLoop = $('.products.row').first();
@@ -409,6 +411,12 @@ class FilterBuilder {
                         urlParams['paged'] = pageNum;
                     }
                     delete urlParams['page'];
+                    delete urlParams['post_type']; // Exclude post_type to keep the URL clean
+                    
+                    // Exclude the current archive category/taxonomy term from URL query since it's already in the pretty permalink path!
+                    if (currentTax && urlParams[currentTax]) {
+                        delete urlParams[currentTax];
+                    }
                     
                     var queryString = $.param(urlParams);
                     var newUrl = currentUrl + (queryString ? '?' + queryString : '');
