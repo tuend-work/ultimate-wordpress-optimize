@@ -32,8 +32,8 @@ class Admin {
      */
     public function register_menu() {
         add_menu_page(
-            __('WooCommerce Flat Index', 'ultimate-woocommerce-optimize'),
-            __('UWO Optimize', 'ultimate-woocommerce-optimize'),
+            __('WordPress Flat Index', 'ultimate-wordpress-optimize'),
+            __('UWO Optimize', 'ultimate-wordpress-optimize'),
             'manage_options',
             'uwo-optimize',
             array($this, 'render_dashboard'),
@@ -96,13 +96,17 @@ class Admin {
         wp_localize_script('uwo-admin-js', 'uwo_admin_params', array(
             'rest_nonce'   => wp_create_nonce('wp_rest'),
             'reindex_url'  => get_rest_url(null, 'uwo/v1/reindex'),
+            'update_url'   => get_rest_url(null, 'uwo/v1/update-plugin'),
             'total_posts'  => $total_posts,
             'i18n'         => array(
-                'indexing'      => __('Indexing in progress...', 'ultimate-woocommerce-optimize'),
-                'indexed'       => __('Successfully indexed %s records!', 'ultimate-woocommerce-optimize'),
-                'completed'     => __('Indexing Completed!', 'ultimate-woocommerce-optimize'),
-                'failed'        => __('Indexing Failed. Try again.', 'ultimate-woocommerce-optimize'),
-                'nothing_sync'  => __('No records to sync.', 'ultimate-woocommerce-optimize'),
+                'indexing'      => __('Indexing in progress...', 'ultimate-wordpress-optimize'),
+                'indexed'       => __('Successfully indexed %s records!', 'ultimate-wordpress-optimize'),
+                'completed'     => __('Indexing Completed!', 'ultimate-wordpress-optimize'),
+                'failed'        => __('Indexing Failed. Try again.', 'ultimate-wordpress-optimize'),
+                'nothing_sync'  => __('No records to sync.', 'ultimate-wordpress-optimize'),
+                'updating'      => __('Updating from GitHub...', 'ultimate-wordpress-optimize'),
+                'updated'       => __('Successfully updated from GitHub!', 'ultimate-wordpress-optimize'),
+                'update_failed' => __('Update failed. Please check folder write permissions.', 'ultimate-wordpress-optimize'),
             )
         ));
     }

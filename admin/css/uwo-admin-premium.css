@@ -484,3 +484,14 @@
     font-size: 0.75rem;
     font-weight: 600;
 }
+
+/* Update spin animations */
+.spin {
+    animation: uwo-spin 1.5s infinite linear;
+    display: inline-block;
+}
+@keyframes uwo-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+

@@ -46,6 +46,12 @@ class RestApi {
             'callback'            => array($this, 'handle_ajax_reindex'),
             'permission_callback' => array($this, 'check_admin_permissions'),
         ));
+
+        register_rest_route('uwo/v1', '/update-plugin', array(
+            'methods'             => \WP_REST_Server::CREATABLE,
+            'callback'            => array($this, 'handle_github_update'),
+            'permission_callback' => array($this, 'check_admin_permissions'),
+        ));
     }
 
     /**
@@ -256,6 +262,113 @@ class RestApi {
             'offset'    => $offset + $processed,
             'total'     => $total_count,
             'finished'  => ($offset + $processed) >= $total_count,
+        ), 200);
+    }
+
+    /**
+     * Pulls the latest version from GitHub repository and replaces the current plugin files.
+     */
+    public function handle_github_update($request) {
+        if (!current_user_can('update_plugins')) {
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => __('You do not have permission to update plugins.', 'ultimate-wordpress-optimize'),
+            ), 403);
+        }
+
+        $repo_zip_url = 'https://github.com/tuend-work/ultimate-wordpress-optimize/archive/refs/heads/main.zip';
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        
+        // 1. Download the ZIP file using standard WordPress download_url
+        $tmp_file = download_url($repo_zip_url);
+        if (is_wp_error($tmp_file)) {
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => sprintf(__('Failed to download zip: %s', 'ultimate-wordpress-optimize'), $tmp_file->get_error_message()),
+            ), 500);
+        }
+
+        // 2. Initialize WP Filesystem
+        global $wp_filesystem;
+        $url = wp_nonce_url('admin.php?page=uwo-optimize', 'uwo-github-update');
+        
+        // Setup filesystem credentials if needed
+        ob_start();
+        $creds = request_filesystem_credentials($url, '', false, false, null);
+        ob_end_clean();
+        
+        if (false === $creds) {
+            @unlink($tmp_file);
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => __('Filesystem credentials failed to retrieve.', 'ultimate-wordpress-optimize'),
+            ), 500);
+        }
+
+        if (!WP_Filesystem($creds)) {
+            ob_start();
+            request_filesystem_credentials($url, '', true, false, null);
+            ob_end_clean();
+            @unlink($tmp_file);
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => __('Failed to initialize WP Filesystem.', 'ultimate-wordpress-optimize'),
+            ), 500);
+        }
+
+        $plugin_slug = 'ultimate-wordpress-optimize';
+        $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
+        $temp_extract_dir = WP_CONTENT_DIR . '/upgrade/uwo-temp-extract';
+
+        // Clean up temporary extraction folder if it exists
+        if ($wp_filesystem->exists($temp_extract_dir)) {
+            $wp_filesystem->delete($temp_extract_dir, true);
+        }
+
+        // 3. Unzip the file
+        $unzip_result = unzip_file($tmp_file, $temp_extract_dir);
+        @unlink($tmp_file); // delete temporary zip
+
+        if (is_wp_error($unzip_result)) {
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => sprintf(__('Unzip failed: %s', 'ultimate-wordpress-optimize'), $unzip_result->get_error_message()),
+            ), 500);
+        }
+
+        // Find the extracted folder name
+        $files = $wp_filesystem->dirlist($temp_extract_dir);
+        if (empty($files)) {
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => __('Extracted folder is empty.', 'ultimate-wordpress-optimize'),
+            ), 500);
+        }
+
+        $extracted_folder_name = key($files);
+        $source_dir = $temp_extract_dir . '/' . $extracted_folder_name;
+
+        // 4. Copy files to plugin directory
+        if (!$wp_filesystem->exists($plugin_dir)) {
+            $wp_filesystem->mkdir($plugin_dir);
+        }
+
+        $copy_result = copy_dir($source_dir, $plugin_dir);
+
+        // Clean up extraction folder
+        $wp_filesystem->delete($temp_extract_dir, true);
+
+        if (is_wp_error($copy_result)) {
+            return new \WP_REST_Response(array(
+                'success' => false,
+                'message' => sprintf(__('Failed to copy files: %s', 'ultimate-wordpress-optimize'), $copy_result->get_error_message()),
+            ), 500);
+        }
+
+        return new \WP_REST_Response(array(
+            'success' => true,
+            'message' => __('Plugin updated successfully from GitHub!', 'ultimate-wordpress-optimize'),
         ), 200);
     }
 }

@@ -47,7 +47,7 @@ if ($db_online) {
     <header class="uwo-header">
         <div class="uwo-header-content">
             <div class="uwo-logo-area">
-                <h1>Ultimate WooCommerce Optimize</h1>
+                <h1>Ultimate WordPress Optimize</h1>
                 <p>Flat Indexing Acceleration Engine & Headless REST API</p>
             </div>
             <div>
@@ -241,6 +241,27 @@ if ($db_online) {
                     </button>
                     <p style="margin: 15px 0 0 0; color: #94a3b8; font-size: 0.78rem; line-height: 1.4;">
                         Synchronizes all currently published posts of selected CPTs directly into the flat tables. This occurs step-by-step to prevent server timeouts.
+                    </p>
+                </div>
+            </section>
+
+            <!-- GitHub Update Center Card -->
+            <section class="uwo-card">
+                <h2 class="uwo-card-title">
+                    <span class="dashicons dashicons-update"></span>
+                    System Update
+                </h2>
+                <div style="text-align: center; padding: 10px 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <span style="color:#cbd5e1; font-weight:500;">Current Version</span>
+                        <span class="uwo-badge-premium" style="font-size:0.85rem; padding:4px 10px; background: rgba(139, 92, 246, 0.2); box-shadow: none; border-color: rgba(139, 92, 246, 0.4); color: #c084fc;">v<?php echo UWO_VERSION; ?></span>
+                    </div>
+                    <button type="button" id="uwo-github-update-btn" class="uwo-btn uwo-btn-secondary uwo-btn-block">
+                        <span class="dashicons dashicons-cloud" style="vertical-align: text-bottom; margin-right: 5px;"></span>
+                        Update from GitHub
+                    </button>
+                    <p style="margin: 15px 0 0 0; color: #94a3b8; font-size: 0.78rem; line-height: 1.4;">
+                        Pulls the latest stable version directly from the main branch of <a href="https://github.com/tuend-work/ultimate-wordpress-optimize" target="_blank" style="color:#8b5cf6; text-decoration:none;">GitHub</a> and applies updates seamlessly.
                     </p>
                 </div>
             </section>

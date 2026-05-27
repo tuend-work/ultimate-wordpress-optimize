@@ -124,4 +124,57 @@ jQuery(document).ready(function($) {
             alert(uwo_admin_params.i18n.failed);
         }
     }
+
+    // GitHub self update execution
+    var isUpdating = false;
+
+    $('#uwo-github-update-btn').on('click', function(e) {
+        e.preventDefault();
+        
+        if (isUpdating) return;
+        
+        if (!confirm('Are you sure you want to pull the latest version and update this plugin from GitHub? This will overwrite local files.')) {
+            return;
+        }
+
+        isUpdating = true;
+        var $btn = $(this);
+        $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin" style="vertical-align: text-bottom; margin-right: 5px;"></span> ' + uwo_admin_params.i18n.updating);
+
+        $.ajax({
+            url: uwo_admin_params.update_url,
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-WP-Nonce': uwo_admin_params.rest_nonce
+            },
+            success: function(response) {
+                isUpdating = false;
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud" style="vertical-align: text-bottom; margin-right: 5px;"></span> Update from GitHub');
+                
+                if (response.success) {
+                    var noticeHtml = '<div class="uwo-notice"><span class="dashicons dashicons-yes uwo-notice-icon"></span>' + 
+                                     uwo_admin_params.i18n.updated + '</div>';
+                    $('#uwo-notice-anchor').html(noticeHtml).slideDown(300);
+                    
+                    // Reload page after 3 seconds to apply any updated admin panel files
+                    setTimeout(function() {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    alert(response.message || uwo_admin_params.i18n.update_failed);
+                }
+            },
+            error: function(xhr) {
+                isUpdating = false;
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud" style="vertical-align: text-bottom; margin-right: 5px;"></span> Update from GitHub');
+                
+                var errorMsg = uwo_admin_params.i18n.update_failed;
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                }
+                alert(errorMsg);
+            }
+        });
+    });
 });

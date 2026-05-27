@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: Ultimate WooCommerce Optimize
+ * Plugin Name: Ultimate WordPress Optimize
  * Plugin URI: https://github.com/tuend-work/ultimate-wordpress-optimize
- * Description: Universal Flat Indexing, Redis Caching, and OpenSearch engine to supercharge WooCommerce and Custom Post Types search & filtering.
+ * Description: Universal Flat Indexing, Redis Caching, and OpenSearch engine to supercharge Custom Post Types search & filtering.
  * Version: 1.0.0
  * Author: Tuend Work & Antigravity
  * Author URI: https://github.com/tuend-work
  * License: GPL2
- * Text Domain: ultimate-woocommerce-optimize
+ * Text Domain: ultimate-wordpress-optimize
  * Domain Path: /languages
  */
 

@@ -1,6 +1,6 @@
 {
-    "name": "uwo/ultimate-woocommerce-optimize",
-    "description": "Universal Flat Indexing and search acceleration engine for WooCommerce and Custom Post Types.",
+    "name": "uwo/ultimate-wordpress-optimize",
+    "description": "Universal Flat Indexing and search acceleration engine for WordPress Custom Post Types.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require": {
