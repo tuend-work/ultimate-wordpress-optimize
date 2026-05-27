@@ -472,6 +472,14 @@ class FilterBuilder {
                     var urlParts = finalBaseUrl.split('?');
                     var cleanBaseUrl = urlParts[0];
                     
+                    // Strip any existing /page/N segments from cleanBaseUrl to prevent duplicate nesting
+                    cleanBaseUrl = cleanBaseUrl.replace(/\/page\/\d+\/?$/i, '');
+                    cleanBaseUrl = cleanBaseUrl.replace(/\/page\/\d+/i, '');
+                    
+                    if (cleanBaseUrl.endsWith('/')) {
+                        cleanBaseUrl = cleanBaseUrl.slice(0, -1);
+                    }
+                    
                     // Initialize urlParams with all params from form
                     var urlParams = $.extend({}, params);
                     
@@ -498,20 +506,21 @@ class FilterBuilder {
                     
                     delete urlParams['page'];
                     delete urlParams['post_type']; // Exclude post_type to keep the URL clean
-                    
-                    if (pageNum > 1) {
-                        urlParams['paged'] = pageNum;
-                    } else {
-                        delete urlParams['paged'];
-                    }
+                    delete urlParams['paged']; // Remove paged parameter to keep the query string extremely clean
 
                     // Remove currentTax from URL params if we are on its archive page and no categories selected or same selected
                     if (currentTax && urlParams[currentTax] && !prettyBaseUrl) {
                         delete urlParams[currentTax];
                     }
 
+                    // Dynamically build the pretty page URL
+                    var finalPath = cleanBaseUrl;
+                    if (pageNum > 1) {
+                        finalPath = cleanBaseUrl + '/page/' + pageNum;
+                    }
+
                     var queryString = $.param(urlParams);
-                    var newUrl = cleanBaseUrl + (queryString ? '?' + queryString : '');
+                    var newUrl = finalPath + (queryString ? '?' + queryString : '');
                     window.history.pushState({ path: newUrl }, '', newUrl);
 
                     // Query the exact pretty URL with query args, fetching the full compiled page from the server
