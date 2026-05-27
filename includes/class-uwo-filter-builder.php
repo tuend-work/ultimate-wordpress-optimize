@@ -386,13 +386,6 @@ class FilterBuilder {
                 }
 
                 var isArchive = $shopLoop.length > 0;
-                if (isArchive) {
-                    // Wrap the shop loop inside a persistent container to prevent DOM destruction and keep pagination outside products list
-                    $shopLoop.wrap('<div class="uwo-archive-wrapper"></div>');
-                    
-                    // Hide theme's original pagination
-                    $('.woocommerce-pagination, .pagination').hide();
-                }
 
                 function performSearch(pageNum) {
                     var $form = $('#' + uniqueFormId);
@@ -510,12 +503,15 @@ class FilterBuilder {
                     var requestUrl = newUrl;
                     
                     // Determine the best page content container to replace (Flatsome/WooCommerce main wrappers)
-                    var containerSelector = '#main';
-                    if ($(containerSelector).length === 0) containerSelector = '#primary';
-                    if ($(containerSelector).length === 0) containerSelector = '#content';
-                    if ($(containerSelector).length === 0) containerSelector = '.shop-container';
-                    if ($(containerSelector).length === 0) containerSelector = '.uwo-archive-wrapper';
-                    if ($(containerSelector).length === 0) containerSelector = '#' + uniqueFormId + '-results';
+                    var containerSelector = '';
+                    if (isArchive) {
+                        containerSelector = '#main';
+                        if ($(containerSelector).length === 0) containerSelector = '#primary';
+                        if ($(containerSelector).length === 0) containerSelector = '#content';
+                        if ($(containerSelector).length === 0) containerSelector = '.shop-container';
+                    } else {
+                        containerSelector = '#' + uniqueFormId + '-results';
+                    }
 
                     var $mainContainer = $(containerSelector).first();
                     $mainContainer.css('opacity', '0.5');
@@ -532,11 +528,6 @@ class FilterBuilder {
                             if ($newContainer.length > 0) {
                                 $newContainer.css('opacity', '1');
                                 $mainContainer.replaceWith($newContainer);
-                                
-                                // Clean up duplicate static theme pagination that might be rendered on page updates
-                                if (isArchive) {
-                                    $('.woocommerce-pagination, .pagination').not('.uwo-archive-wrapper .woocommerce-pagination, .uwo-archive-wrapper .pagination').hide();
-                                }
                             } else {
                                 // Fallback: update only results container
                                 $mainContainer.css('opacity', '1');
