@@ -279,7 +279,7 @@ class FilterBuilder {
         </form>
 
         <!-- Target display for matching results -->
-        <div id="<?php echo $unique_form_id; ?>-results"></div>
+        <div id="<?php echo $unique_form_id; ?>-results" class="products row row-small large-columns-4 medium-columns-3 small-columns-2"></div>
 
         <script>
             jQuery(document).ready(function($) {
@@ -321,27 +321,53 @@ class FilterBuilder {
                             $results.css('opacity', '1').empty();
                             if (response.success && response.data.length > 0) {
                                 $.each(response.data, function(_, item) {
-                                    var featured_img = item.featured_image ? item.featured_image : 'https://placehold.co/300x300?text=No+Image';
-                                    var price_text = item.price ? parseFloat(item.price).toLocaleString() + ' đ' : 'N/A';
-                                    var stock_text = item.stock_status === 'instock' ? 'In stock' : 'Out of stock';
+                                    var permalink = item.permalink ? item.permalink : '#';
+                                    var featured_img = item.featured_image ? item.featured_image : '';
+                                    var price_text = '';
+                                    if (item.price) {
+                                        price_text = parseFloat(item.price).toLocaleString('vi-VN') + ' <span class="woocommerce-Price-currencySymbol">&#8363;</span>';
+                                    } else {
+                                        price_text = 'Liên hệ';
+                                    }
+                                    var stock_status = item.stock_status ? item.stock_status : 'instock';
+                                    var out_of_stock_badge = '';
+                                    if (stock_status === 'outofstock') {
+                                        out_of_stock_badge = '<div class="badge-inner back-in-stock-badge out-of-stock-badge"><span class="out-of-stock-title">Hết hàng</span></div>';
+                                    }
                                     
                                     var cardHtml = 
-                                        '<div>' +
-                                            '<img src="' + featured_img + '" style="max-width:100px; display:block;" />' +
-                                            '<h4>' + item.title + '</h4>' +
-                                            '<div>' +
-                                                '<span>' + price_text + '</span> | ' +
-                                                '<span>' + stock_text + '</span>' +
+                                        '<div class="product-small col has-hover post-' + item.id + ' product type-product status-publish ' + stock_status + ' has-post-thumbnail">' +
+                                            '<div class="col-inner">' +
+                                                '<div class="badge-container">' + out_of_stock_badge + '</div>' +
+                                                '<div class="product-fade">' +
+                                                    '<div class="image-fade">' +
+                                                        '<a href="' + permalink + '">' +
+                                                            '<img src="' + featured_img + '" alt="' + item.title + '" width="300" height="300" class="attachment-woocommerce_thumbnail size-woocommerce_thumbnail" />' +
+                                                        '</a>' +
+                                                    '</div>' +
+                                                '</div>' +
+                                                '<div class="box-text box-text-products text-center grid-style-2">' +
+                                                    '<div class="title-wrapper">' +
+                                                        '<p class="name product-title woocommerce-loop-product__title">' +
+                                                            '<a href="' + permalink + '">' + item.title + '</a>' +
+                                                        '</p>' +
+                                                    '</div>' +
+                                                    '<div class="price-wrapper">' +
+                                                        '<span class="price">' +
+                                                            '<span class="woocommerce-Price-amount amount"><bdi>' + price_text + '</bdi></span>' +
+                                                        '</span>' +
+                                                    '</div>' +
+                                                '</div>' +
                                             '</div>' +
                                         '</div>';
                                     $results.append(cardHtml);
                                 });
                             } else {
-                                $results.append('<p>No matching records found.</p>');
+                                $results.append('<p class="woocommerce-info" style="width: 100%; text-align: center; grid-column: 1/-1;">Không tìm thấy sản phẩm nào khớp với lựa chọn của bạn.</p>');
                             }
                         },
                         error: function() {
-                            $results.css('opacity', '1').empty().append('<p>Failed to fetch results. Check console.</p>');
+                            $results.css('opacity', '1').empty().append('<p style="width: 100%; text-align: center; grid-column: 1/-1; color: #ef4444;">Failed to fetch results. Check console.</p>');
                         }
                     });
                 });
