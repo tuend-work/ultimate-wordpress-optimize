@@ -177,4 +177,117 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    // === Filter Builder Interactivity & AJAX hooks ===
+
+    // 1. Manage Column Checklist: toggle disabled state of input fields in real-time
+    $('.uwo-column-checkbox').on('change', function() {
+        var $checkbox = $(this);
+        var $row = $checkbox.closest('.uwo-column-row');
+        var isChecked = $checkbox.is(':checked');
+
+        $row.find('input[type="text"], select').prop('disabled', !isChecked);
+
+        if (isChecked) {
+            $row.css('background', 'rgba(139, 92, 246, 0.05)').css('border-color', 'rgba(139, 92, 246, 0.3)');
+        } else {
+            $row.css('background', 'rgba(255, 255, 255, 0.01)').css('border-color', 'rgba(255, 255, 255, 0.02)');
+        }
+    });
+
+    // 2. Click to automatically copy shortcode
+    $('.uwo-copy-shortcode-input').on('click', function() {
+        var $input = $(this);
+        $input.select();
+        document.execCommand('copy');
+
+        // Custom temporary visually stunning visual copy feedback
+        var originalColor = $input.css('color');
+        $input.css('color', '#10b981').css('border-color', '#10b981');
+        setTimeout(function() {
+            $input.css('color', originalColor).css('border-color', 'rgba(255,255,255,0.08)');
+        }, 1500);
+    });
+
+    // 3. Submit Creator Form via AJAX to Save Filter
+    $('#uwo-filter-builder-form').on('submit', function(e) {
+        e.preventDefault();
+
+        var $form = $(this);
+        var $btn = $('#uwo-create-filter-btn');
+
+        // Ensure at least one column is checked
+        if ($('.uwo-column-checkbox:checked').length === 0) {
+            alert('Please select at least one column to build your filter!');
+            return;
+        }
+
+        $btn.prop('disabled', true).text('Generating Shortcode...');
+
+        // Perform AJAX call using WordPress ajaxurl
+        $.ajax({
+            url: ajaxurl,
+            method: 'POST',
+            data: $form.serialize() + '&action=uwo_save_filter',
+            success: function(response) {
+                $btn.prop('disabled', false).text('Generate Filter Shortcode');
+                if (response.success) {
+                    var noticeHtml = '<div class="uwo-notice"><span class="dashicons dashicons-yes uwo-notice-icon"></span>' + response.data.message + '</div>';
+                    $('#uwo-notice-anchor').html(noticeHtml).slideDown(300);
+
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1200);
+                } else {
+                    alert(response.data.message || 'Failed to save filter.');
+                }
+            },
+            error: function() {
+                $btn.prop('disabled', false).text('Generate Filter Shortcode');
+                alert('Connection error occurred while saving the filter.');
+            }
+        });
+    });
+
+    // 4. Delete Filter via AJAX
+    $('.uwo-delete-filter-btn').on('click', function(e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+        var filterId = $btn.data('filter-id');
+        var security = $('#uwo-filter-builder-form').find('input[name="security"]').val();
+
+        if (!confirm('Are you sure you want to delete this custom filter? This cannot be undone.')) {
+            return;
+        }
+
+        $btn.prop('disabled', true).text('Deleting...');
+
+        $.ajax({
+            url: ajaxurl,
+            method: 'POST',
+            data: {
+                action: 'uwo_delete_filter',
+                filter_id: filterId,
+                security: security
+            },
+            success: function(response) {
+                if (response.success) {
+                    var noticeHtml = '<div class="uwo-notice"><span class="dashicons dashicons-yes uwo-notice-icon"></span>' + response.data.message + '</div>';
+                    $('#uwo-notice-anchor').html(noticeHtml).slideDown(300);
+
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1200);
+                } else {
+                    $btn.prop('disabled', false).text('Delete');
+                    alert(response.data.message || 'Failed to delete filter.');
+                }
+            },
+            error: function() {
+                $btn.prop('disabled', false).text('Delete');
+                alert('Connection error occurred while deleting the filter.');
+            }
+        });
+    });
 });

@@ -166,6 +166,133 @@ if ($db_online) {
                     <button type="submit" class="uwo-btn uwo-btn-primary">Save Optimization Settings</button>
                 </div>
             </form>
+
+            <!-- Custom Filter Builder Center -->
+            <section class="uwo-card" id="uwo-filter-builder-section" style="margin-top: 30px;">
+                <h2 class="uwo-card-title">
+                    <span class="dashicons dashicons-filter"></span>
+                    Custom Filter Builder Center
+                </h2>
+                <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 25px;">
+                    Create autonomous high-performance faceted search filters. Each filter produces a unique shortcode that can be embedded into any page or widget.
+                </p>
+
+                <!-- List of Existing Filters -->
+                <div class="uwo-existing-filters" style="margin-bottom: 35px;">
+                    <h3 style="color:#f8fafc; font-size:1.05rem; font-weight:600; margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:10px;">Active Filters & Shortcodes</h3>
+                    <?php 
+                    $existing_filters = \UWO\FilterBuilder::get_all_filters();
+                    if (empty($existing_filters)) : 
+                    ?>
+                        <div class="uwo-no-filters-alert" style="background:rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius:12px; padding:20px; text-align:center; color:#94a3b8;">
+                            <span class="dashicons dashicons-info" style="font-size:24px; width:24px; height:24px; margin-bottom:10px; opacity:0.6;"></span>
+                            <p style="margin:0; font-size:0.9rem;">No custom filters created yet. Use the form below to build your first filter!</p>
+                        </div>
+                    <?php else : ?>
+                        <div class="uwo-filters-grid" style="display:grid; gap:15px;">
+                            <?php foreach ($existing_filters as $fid => $f) : 
+                                $active_cols = array_keys($f['fields']);
+                                $chips = array();
+                                foreach ($active_cols as $c) {
+                                    $chips[] = '<code style="background:rgba(139,92,246,0.15); color:#c084fc; border:1px solid rgba(139,92,246,0.3); border-radius:4px; padding:2px 6px; font-size:11px; margin-right:4px;">' . esc_html(str_replace('cf_', '', $c)) . '</code>';
+                                }
+                            ?>
+                                <div class="uwo-filter-row" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:12px; padding:15px; display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap;">
+                                    <div>
+                                        <h4 style="margin:0 0 5px 0; color:#f8fafc; font-size:0.98rem; font-weight:600;"><?php echo esc_html($f['name']); ?> <span style="font-size:11px; font-weight:400; color:#94a3b8; background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:99px; margin-left:5px; text-transform:uppercase;"><?php echo esc_html($f['post_type']); ?></span></h4>
+                                        <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+                                            <span style="font-size:11px; color:#64748b; margin-right:5px;">Columns:</span>
+                                            <?php echo implode('', $chips); ?>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:15px;">
+                                        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                                            <span style="font-size:10px; color:#64748b; margin-bottom:3px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Click to Copy Shortcode</span>
+                                            <input type="text" readonly value='[uwo_filter id="<?php echo esc_attr($fid); ?>"]' class="uwo-copy-shortcode-input" title="Click to copy shortcode" style="width:230px; font-family:monospace; font-size:12px; padding:6px 10px; text-align:center; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:pointer; color:#a78bfa; transition:all 0.2s ease;" />
+                                        </div>
+                                        <button type="button" class="uwo-delete-filter-btn" data-filter-id="<?php echo esc_attr($fid); ?>" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); color:#f87171; padding:8px 14px; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s ease; display:flex; align-items:center; gap:5px;"><span class="dashicons dashicons-trash" style="font-size:14px; width:14px; height:14px;"></span> Delete</button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Create New Filter Form -->
+                <div class="uwo-new-filter-builder" style="background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03); border-radius:16px; padding:25px;">
+                    <h3 style="color:#f8fafc; font-size:1.05rem; font-weight:600; margin-top:0; margin-bottom:20px;">Create New Filter</h3>
+                    
+                    <form id="uwo-filter-builder-form">
+                        <?php wp_nonce_field('uwo-filter-builder-nonce', 'security'); ?>
+                        
+                        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px; margin-bottom:25px;">
+                            <div class="uwo-form-group" style="margin:0;">
+                                <label style="font-weight:600; color:#cbd5e1;">Filter Name</label>
+                                <input type="text" name="name" required placeholder="e.g. Shop Side Catalog Filter" style="background: rgba(255,255,255,0.03);" />
+                            </div>
+                            <div class="uwo-form-group" style="margin:0;">
+                                <label style="font-weight:600; color:#cbd5e1;">Target Post Type</label>
+                                <select name="post_type" required style="background: rgba(255,255,255,0.03);">
+                                    <?php foreach ($all_post_types as $slug => $obj) : 
+                                        if (!in_array($slug, $enabled_post_types, true)) continue;
+                                    ?>
+                                        <option value="<?php echo esc_attr($slug); ?>"><?php echo esc_html($obj->labels->name); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="uwo-form-group">
+                            <label style="font-weight:600; color:#cbd5e1; margin-bottom:12px;">Select Index Table Columns to Filter</label>
+                            <p style="color:#94a3b8; font-size:0.8rem; margin:-5px 0 15px 0; line-height:1.4;">
+                                Toggle check on columns you want to offer as active filter widgets. Customize their public display label and choose control widget.
+                            </p>
+
+                            <!-- Column Config Rows -->
+                            <div style="display:grid; gap:12px; background:rgba(0,0,0,0.15); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.03);">
+                                <?php 
+                                $db = \UWO\Database::get_instance();
+                                $columns = $db->get_table_columns();
+                                $exclude_cols = array('id', 'post_id', 'parent_id', 'post_type', 'slug', 'payload_json', 'search_text', 'updated_at', 'attributes_filter');
+                                
+                                foreach ($columns as $col) : 
+                                    if (in_array($col, $exclude_cols, true)) continue;
+                                    $nice_name = str_replace('cf_', '', $col);
+                                    $nice_name = ucfirst(str_replace('_', ' ', $nice_name));
+                                ?>
+                                    <div class="uwo-column-row" style="display:grid; grid-template-columns: auto 2fr 2fr 2fr; gap:20px; align-items:center; padding:10px 15px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); border-radius:8px; transition:all 0.2s ease;">
+                                        <div style="display:flex; align-items:center;">
+                                            <input type="checkbox" class="uwo-column-checkbox" style="width:18px; height:18px; cursor:pointer;" />
+                                        </div>
+                                        <div style="font-weight:600; font-size:0.92rem; color:#f1f5f9; display:flex; align-items:center; gap:8px;">
+                                            <span><?php echo esc_html($nice_name); ?></span>
+                                            <code style="font-size:10px; color:#8b5cf6; background:rgba(139,92,246,0.1); padding:1px 6px; border-radius:4px; font-weight:400;"><?php echo esc_html($col); ?></code>
+                                        </div>
+                                        <div>
+                                            <input type="text" name="fields[<?php echo esc_attr($col); ?>][label]" disabled placeholder="<?php echo esc_attr($nice_name); ?>" style="width:100%; font-size:12px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.02);" />
+                                        </div>
+                                        <div>
+                                            <select name="fields[<?php echo esc_attr($col); ?>][type]" disabled style="width:100%; font-size:12px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.02);">
+                                                <option value="checkbox">Multi-Checkboxes</option>
+                                                <option value="select">Dropdown Select</option>
+                                                <?php if ($col === 'price' || strpos($col, 'cf_') === 0) : ?>
+                                                    <option value="range">Range Field</option>
+                                                <?php endif; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div style="text-align: right; margin-top:20px;">
+                            <button type="submit" id="uwo-create-filter-btn" class="uwo-btn uwo-btn-primary" style="padding:10px 24px; font-size:0.9rem;">
+                                Generate Filter Shortcode
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
         </main>
 
         <!-- Column 2: Dashboard Real-time status -->

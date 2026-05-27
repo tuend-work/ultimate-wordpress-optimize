@@ -213,12 +213,22 @@ class QueryEngine {
                     } elseif ($key === '_stock_status') {
                         $where[] = $wpdb->prepare("stock_status = %s", $value);
                     } else {
-                        // Dynamic custom columns from ACF / Meta
-                        $col = 'cf_' . sanitize_key($key);
+                        // Check if key is a direct physical column, or if it matches custom column cf_[key]
                         $db = Database::get_instance();
-                        if ($db->column_exists($col)) {
+                        $col = '';
+                        $clean_key = sanitize_key($key);
+                        if ($db->column_exists($clean_key)) {
+                            $col = $clean_key;
+                        } elseif ($db->column_exists('cf_' . $clean_key)) {
+                            $col = 'cf_' . $clean_key;
+                        }
+
+                        if (!empty($col)) {
                             if ($compare === '=') {
                                 $where[] = $wpdb->prepare("`{$col}` = %s", $value);
+                            } elseif ($compare === 'IN' && is_array($value)) {
+                                $escaped_vals = array_map('esc_sql', $value);
+                                $where[] = "`{$col}` IN ('" . implode("','", $escaped_vals) . "')";
                             } elseif ($compare === 'LIKE') {
                                 $where[] = $wpdb->prepare("`{$col}` LIKE %s", '%' . $wpdb->esc_like($value) . '%');
                             }
@@ -359,12 +369,24 @@ class QueryEngine {
                     } elseif ($key === '_stock_status') {
                         $filter[] = array('term' => array('stock_status' => $value));
                     } else {
-                        // Dynamic custom fields
-                        $col = 'cf_' . sanitize_key($key);
-                        if ($compare === '=') {
-                            $filter[] = array('term' => array($col => $value));
-                        } elseif ($compare === 'LIKE') {
-                            $must[] = array('match' => array($col => $value));
+                        // Check if key is a direct physical column, or if it matches custom column cf_[key]
+                        $db = Database::get_instance();
+                        $col = '';
+                        $clean_key = sanitize_key($key);
+                        if ($db->column_exists($clean_key)) {
+                            $col = $clean_key;
+                        } elseif ($db->column_exists('cf_' . $clean_key)) {
+                            $col = 'cf_' . $clean_key;
+                        }
+
+                        if (!empty($col)) {
+                            if ($compare === '=') {
+                                $filter[] = array('term' => array($col => $value));
+                            } elseif ($compare === 'IN' && is_array($value)) {
+                                $filter[] = array('terms' => array($col => $value));
+                            } elseif ($compare === 'LIKE') {
+                                $must[] = array('match' => array($col => $value));
+                            }
                         }
                     }
                 }

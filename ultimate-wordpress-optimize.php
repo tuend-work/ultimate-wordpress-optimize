@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate WordPress Optimize
  * Plugin URI: https://github.com/tuend-work/ultimate-wordpress-optimize
  * Description: Universal Flat Indexing, Redis Caching, and OpenSearch engine to supercharge Custom Post Types search & filtering.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: Tuend Work & Antigravity
  * Author URI: https://github.com/tuend-work
  * License: GPL2
@@ -16,7 +16,7 @@ if (!defined('WPINC')) {
     die;
 }
 
-define('UWO_VERSION', '1.0.4');
+define('UWO_VERSION', '1.0.5');
 define('UWO_PATH', str_replace('\\', '/', plugin_dir_path(__FILE__)));
 define('UWO_URL', plugin_dir_url(__FILE__));
 
@@ -42,6 +42,7 @@ require_once UWO_PATH . 'includes/class-uwo-open-search.php';
 require_once UWO_PATH . 'includes/class-uwo-sync-engine.php';
 require_once UWO_PATH . 'includes/class-uwo-query-engine.php';
 require_once UWO_PATH . 'includes/class-uwo-rest-api.php';
+require_once UWO_PATH . 'includes/class-uwo-filter-builder.php';
 require_once UWO_PATH . 'admin/class-uwo-admin.php';
 
 // Activation & Deactivation Hooks
@@ -82,5 +83,8 @@ function uwo_init_plugin() {
 
     // Initialize REST API endpoints
     \UWO\RestApi::get_instance();
+
+    // Initialize Custom Filter Builder
+    \UWO\FilterBuilder::get_instance();
 }
 add_action('plugins_loaded', 'uwo_init_plugin');

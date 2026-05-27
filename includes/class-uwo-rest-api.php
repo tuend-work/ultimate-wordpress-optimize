@@ -108,6 +108,30 @@ class RestApi {
             );
         }
 
+        // Dynamically parse all valid table columns from request parameters
+        $db = Database::get_instance();
+        $db_cols = $db->get_table_columns();
+        foreach ($params as $key => $value) {
+            $col = sanitize_key($key);
+            if (in_array($col, $db_cols, true)) {
+                // Avoid duplicating price/metadata filters
+                if (in_array($col, array('price', 'id', 'post_id', 'parent_id', 'post_type', 'slug', 'payload_json', 'search_text', 'updated_at', 'attributes_filter'), true)) {
+                    continue;
+                }
+
+                $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
+
+                // For custom fields cf_something, key is 'something' (to be stripped of cf_)
+                $meta_key = (strpos($col, 'cf_') === 0) ? substr($col, 3) : $col;
+
+                $args['meta_query'][] = array(
+                    'key'     => $meta_key,
+                    'value'   => $sanitized_value,
+                    'compare' => is_array($value) ? 'IN' : '=',
+                );
+            }
+        }
+
         // Intercept query through Query Engine
         $engine = QueryEngine::get_instance();
         $start_time = microtime(true);
