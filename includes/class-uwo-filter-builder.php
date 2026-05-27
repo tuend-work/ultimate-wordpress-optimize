@@ -363,8 +363,11 @@ class FilterBuilder {
 
                 var isArchive = $shopLoop.length > 0;
                 if (isArchive) {
-                    $results = $shopLoop;
-                    // Hide original pagination
+                    // Wrap the shop loop inside a persistent container to prevent DOM destruction and keep pagination outside products list
+                    $shopLoop.wrap('<div class="uwo-archive-wrapper"></div>');
+                    $results = $shopLoop.parent('.uwo-archive-wrapper');
+                    
+                    // Hide theme's original pagination
                     $('.woocommerce-pagination, .pagination').hide();
                 }
 
@@ -451,14 +454,17 @@ class FilterBuilder {
                     performSearch(1); // Starting new filter always resets to page 1
                 });
 
-                // Whenever any field changes, submit the form to reset to page 1
-                $form.find('input, select').on('change', function() {
-                    if ($(this).attr('type') === 'text') return;
+                // Whenever any field changes, submit the form to reset to page 1 using robust delegated events
+                $form.on('change', 'input, select', function() {
+                    var inputType = $(this).attr('type');
+                    if (inputType === 'text' || inputType === 'number') {
+                        return; // Ignore typing in search or price range boxes (allow typing multi-digit numbers freely)
+                    }
                     $form.trigger('submit');
                 });
 
                 // Intercept AJAX pagination link clicks inside results wrapper
-                $results.on('click', '.woocommerce-pagination a, .pagination a', function(e) {
+                $results.on('click', '.woocommerce-pagination a, .pagination a, .navigation.pagination a', function(e) {
                     var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
                     if (!enableAjax) {
                         return; // Let GET link trigger redirect naturally
