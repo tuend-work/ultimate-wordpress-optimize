@@ -65,6 +65,80 @@ class QueryEngine {
             $args['meta_query'] = $meta_query;
         }
 
+        // Dynamically parse all valid table columns and registered taxonomies from $_GET for standard page reloads
+        $db = Database::get_instance();
+        $db_cols = $db->get_table_columns();
+        $get_params = $_GET;
+        
+        // 1. Price bounds in GET
+        if (isset($get_params['price_min']) || isset($get_params['price_max'])) {
+            $min = isset($get_params['price_min']) && $get_params['price_min'] !== '' ? (float) $get_params['price_min'] : 0.0;
+            $max = isset($get_params['price_max']) && $get_params['price_max'] !== '' ? (float) $get_params['price_max'] : 9999999.0;
+            if (!isset($args['meta_query'])) {
+                $args['meta_query'] = array();
+            }
+            $args['meta_query'][] = array(
+                'key'     => '_price',
+                'value'   => array($min, $max),
+                'compare' => 'BETWEEN',
+            );
+        }
+
+        // 2. Stock status in GET
+        if (!empty($get_params['stock_status'])) {
+            if (!isset($args['meta_query'])) {
+                $args['meta_query'] = array();
+            }
+            $args['meta_query'][] = array(
+                'key'     => '_stock_status',
+                'value'   => sanitize_text_field($get_params['stock_status']),
+                'compare' => '=',
+            );
+        }
+
+        // 3. Text search GET fallback
+        if (empty($args['search']) && !empty($get_params['s'])) {
+            $args['search'] = sanitize_text_field($get_params['s']);
+        }
+
+        // 4. Taxonomies and Custom fields in GET
+        foreach ($get_params as $key => $value) {
+            $param_key = sanitize_key($key);
+            if (empty($value)) {
+                continue;
+            }
+
+            if (taxonomy_exists($param_key)) {
+                $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
+                if (!isset($args['tax_query'])) {
+                    $args['tax_query'] = array();
+                }
+                $args['tax_query'][] = array(
+                    'taxonomy' => $param_key,
+                    'field'    => 'slug',
+                    'terms'    => $sanitized_value,
+                    'operator' => is_array($value) ? 'IN' : 'AND',
+                );
+            }
+            elseif (in_array($param_key, $db_cols, true)) {
+                if (in_array($param_key, array('price', 'id', 'post_id', 'parent_id', 'post_type', 'slug', 'payload_json', 'search_text', 'updated_at', 'attributes_filter'), true)) {
+                    continue;
+                }
+
+                $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
+                $meta_key = (strpos($param_key, 'cf_') === 0) ? substr($param_key, 3) : $param_key;
+
+                if (!isset($args['meta_query'])) {
+                    $args['meta_query'] = array();
+                }
+                $args['meta_query'][] = array(
+                    'key'     => $meta_key,
+                    'value'   => $sanitized_value,
+                    'compare' => is_array($value) ? 'IN' : '=',
+                );
+            }
+        }
+
         // Handle sorting / orderby
         $orderby = $query->get('orderby');
         $order = $query->get('order') ?: 'DESC';
@@ -76,17 +150,19 @@ class QueryEngine {
         // Execute accelerated search
         $results = $this->query_items($args);
 
-        if ($results && !empty($results['ids'])) {
+        if ($results) {
             // Set total found rows for pagination
             $query->found_posts = $results['total'];
             $query->max_num_pages = ceil($results['total'] / $args['posts_per_page']);
 
             // Instantiate posts from DB to satisfy WP core requirements
             $post_objects = array();
-            foreach ($results['ids'] as $id) {
-                $post_obj = get_post($id);
-                if ($post_obj) {
-                    $post_objects[] = $post_obj;
+            if (!empty($results['ids'])) {
+                foreach ($results['ids'] as $id) {
+                    $post_obj = get_post($id);
+                    if ($post_obj) {
+                        $post_objects[] = $post_obj;
+                    }
                 }
             }
             return $post_objects;

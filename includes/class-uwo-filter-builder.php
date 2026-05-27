@@ -141,27 +141,35 @@ class FilterBuilder {
         $name = !empty($_POST['name']) ? sanitize_text_field($_POST['name']) : 'Unnamed Filter';
         $post_type = !empty($_POST['post_type']) ? sanitize_text_field($_POST['post_type']) : 'product';
         $fields_raw = !empty($_POST['fields']) ? $_POST['fields'] : array();
+        $fields_active = !empty($_POST['fields_active']) ? $_POST['fields_active'] : array();
 
         $fields = array();
         if (is_array($fields_raw)) {
             foreach ($fields_raw as $col => $settings) {
-                $fields[sanitize_key($col)] = array(
+                $col_key = sanitize_key($col);
+                if (!isset($fields_active[$col_key])) {
+                    continue; // Only save active checked fields
+                }
+                $fields[$col_key] = array(
                     'label' => !empty($settings['label']) ? sanitize_text_field($settings['label']) : ucfirst(str_replace('cf_', '', $col)),
                     'type'  => !empty($settings['type']) ? sanitize_key($settings['type']) : 'checkbox', // checkbox, select, range
+                    'width' => !empty($settings['width']) ? sanitize_text_field($settings['width']) : '',
                 );
             }
         }
 
         $layout = !empty($_POST['layout']) ? sanitize_key($_POST['layout']) : 'vertical';
+        $enable_ajax = isset($_POST['enable_ajax']) ? (int)$_POST['enable_ajax'] : 1;
 
         $filters = self::get_all_filters();
         $filters[$filter_id] = array(
-            'id'        => $filter_id,
-            'name'      => $name,
-            'post_type' => $post_type,
-            'layout'    => $layout,
-            'fields'    => $fields,
-            'created'   => current_time('mysql')
+            'id'          => $filter_id,
+            'name'        => $name,
+            'post_type'   => $post_type,
+            'layout'      => $layout,
+            'enable_ajax' => $enable_ajax,
+            'fields'      => $fields,
+            'created'     => current_time('mysql')
         );
 
         update_option('uwo_custom_filters', $filters);
@@ -213,58 +221,106 @@ class FilterBuilder {
         $filter = $filters[$args['id']];
         $post_type = $filter['post_type'];
 
+        // 1. Detect Archive Taxonomy Context (e.g. Category/Tag page)
+        $current_tax = '';
+        $current_term = '';
+        if (is_tax() || is_category() || is_tag()) {
+            $queried_obj = get_queried_object();
+            if ($queried_obj && !is_wp_error($queried_obj)) {
+                $current_tax = $queried_obj->taxonomy;
+                $current_term = $queried_obj->slug;
+            }
+        }
+
+        $form_action = '';
+        if (is_tax() || is_category() || is_tag()) {
+            $term_link = get_term_link(get_queried_object());
+            $form_action = !is_wp_error($term_link) ? $term_link : '';
+        }
+        if (empty($form_action)) {
+            $form_action = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('shop') : get_permalink();
+        }
+
+        $enable_ajax = isset($filter['enable_ajax']) ? (int)$filter['enable_ajax'] : 1;
+
         ob_start();
         $unique_form_id = 'uwo-filter-form-' . esc_attr($filter['id']);
         $layout = !empty($filter['layout']) ? $filter['layout'] : 'vertical';
         ?>
-        <form id="<?php echo $unique_form_id; ?>" class="uwo-fe-filter-form">
+        <form id="<?php echo $unique_form_id; ?>" class="uwo-fe-filter-form" action="<?php echo esc_url($form_action); ?>" method="GET">
             <input type="hidden" name="post_type" value="<?php echo esc_attr($post_type); ?>" />
             
-            <div class="<?php echo esc_attr($layout); ?>">
+            <div class="<?php echo esc_attr($layout); ?>" style="<?php echo $layout === 'horizontal' ? 'display: flex; flex-wrap: wrap; align-items: flex-end; gap: 15px;' : ''; ?>">
                 <?php foreach ($filter['fields'] as $column => $settings) : 
                     $label = $settings['label'];
                     $type = $settings['type'];
+                    $width = !empty($settings['width']) ? $settings['width'] : '';
+                    $style_attr = !empty($width) ? 'style="width:' . esc_attr($width) . ';"' : '';
                     
-                    // Price Range
-                    if ($column === 'price' && $type === 'range') :
+                    // 1. Text Search Box (Title / Search Text) - Omit Widget Title/h4 entirely
+                    if ($column === 'title' || $column === 'search_text') :
+                        $s_val = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
+                    ?>
+                        <div class="uwo-fe-filter-widget uwo-fe-search-widget" <?php echo $style_attr; ?>>
+                            <input type="text" name="s" value="<?php echo esc_attr($s_val); ?>" placeholder="<?php echo esc_attr($label); ?>" style="width: 100%;" />
+                        </div>
+                    <?php 
+                    // 2. Price Range
+                    elseif ($column === 'price' && $type === 'range') :
                         global $wpdb;
                         $table_name = $wpdb->prefix . 'uwo_items_index';
                         $bounds = $wpdb->get_row($wpdb->prepare("SELECT MIN(price) as min, MAX(price) as max FROM `{$table_name}` WHERE post_type = %s", $post_type));
                         $min = $bounds ? floor($bounds->min) : 0;
                         $max = $bounds ? ceil($bounds->max) : 1000;
+                        
+                        $price_min_val = isset($_GET['price_min']) ? sanitize_text_field($_GET['price_min']) : '';
+                        $price_max_val = isset($_GET['price_max']) ? sanitize_text_field($_GET['price_max']) : '';
                     ?>
-                        <div>
-                            <h4><?php echo esc_html($label); ?></h4>
-                            <div>
-                                <input type="number" name="price_min" placeholder="<?php echo $min; ?>" min="<?php echo $min; ?>" max="<?php echo $max; ?>" />
-                                <input type="number" name="price_max" placeholder="<?php echo $max; ?>" min="<?php echo $min; ?>" max="<?php echo $max; ?>" />
+                        <div class="uwo-fe-filter-widget" <?php echo $style_attr; ?>>
+                            <h4 style="margin: 0 0 5px 0; font-size: 13px; font-weight: 600;"><?php echo esc_html($label); ?></h4>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" name="price_min" placeholder="<?php echo $min; ?>" min="<?php echo $min; ?>" max="<?php echo $max; ?>" value="<?php echo esc_attr($price_min_val); ?>" style="width: 50%;" />
+                                <input type="number" name="price_max" placeholder="<?php echo $max; ?>" min="<?php echo $min; ?>" max="<?php echo $max; ?>" value="<?php echo esc_attr($price_max_val); ?>" style="width: 50%;" />
                             </div>
                         </div>
                     <?php 
-                    // Dropdown Select or Checkboxes
+                    // 3. Dropdown Select or Checkboxes
                     else : 
                         $mapped_options = $this->get_unique_column_values($column);
                         if (empty($mapped_options)) continue;
                     ?>
-                        <div>
-                            <h4><?php echo esc_html($label); ?></h4>
-                            <?php if ($type === 'select') : ?>
-                                <select name="<?php echo esc_attr($column); ?>">
+                        <div class="uwo-fe-filter-widget" <?php echo $style_attr; ?>>
+                            <h4 style="margin: 0 0 5px 0; font-size: 13px; font-weight: 600;"><?php echo esc_html($label); ?></h4>
+                            <?php if ($type === 'select') : 
+                                $selected_val = isset($_GET[$column]) ? sanitize_text_field($_GET[$column]) : '';
+                                if (empty($selected_val) && $column === $current_tax) {
+                                    $selected_val = $current_term;
+                                }
+                            ?>
+                                <select name="<?php echo esc_attr($column); ?>" style="width: 100%;">
                                     <option value=""><?php printf(__('All %s', 'ultimate-wordpress-optimize'), esc_html($label)); ?></option>
-                                    <?php foreach ($mapped_options as $val => $display_name) : ?>
-                                        <option value="<?php echo esc_attr($val); ?>"><?php echo esc_html($display_name); ?></option>
+                                    <?php foreach ($mapped_options as $val => $display_name) : 
+                                        $selected = ($val === $selected_val) ? 'selected="selected"' : '';
+                                    ?>
+                                        <option value="<?php echo esc_attr($val); ?>" <?php echo $selected; ?>><?php echo esc_html($display_name); ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                            <?php else : // Checkboxes ?>
+                            <?php else : // Checkboxes 
+                                $checked_vals = isset($_GET[$column]) ? (array)$_GET[$column] : array();
+                                if (empty($checked_vals) && $column === $current_tax) {
+                                    $checked_vals = array($current_term);
+                                }
+                            ?>
                                 <div>
                                     <?php 
                                     $opt_index = 0;
                                     foreach ($mapped_options as $val => $display_name) : 
                                         $unique_id = $unique_form_id . '-' . $column . '-' . $opt_index;
                                         $opt_index++;
+                                        $checked = in_array($val, $checked_vals, true) ? 'checked="checked"' : '';
                                     ?>
-                                        <label for="<?php echo $unique_id; ?>">
-                                            <input type="checkbox" id="<?php echo $unique_id; ?>" name="<?php echo esc_attr($column); ?>[]" value="<?php echo esc_attr($val); ?>" />
+                                        <label for="<?php echo $unique_id; ?>" style="display: block; margin-bottom: 5px; cursor: pointer; font-size: 13px;">
+                                            <input type="checkbox" id="<?php echo $unique_id; ?>" name="<?php echo esc_attr($column); ?>[]" value="<?php echo esc_attr($val); ?>" <?php echo $checked; ?> />
                                             <span><?php echo esc_html($display_name); ?></span>
                                         </label>
                                     <?php endforeach; ?>
@@ -273,12 +329,23 @@ class FilterBuilder {
                         </div>
                     <?php endif; ?>
                 <?php endforeach; ?>
-            </div>
 
-            <button type="submit">Filter Items</button>
+                <?php
+                // Render hidden input for active taxonomy category archive context if not in form fields
+                if (!empty($current_tax) && !empty($current_term) && !isset($filter['fields'][$current_tax])) {
+                    echo '<input type="hidden" name="' . esc_attr($current_tax) . '[]" value="' . esc_attr($current_term) . '" />';
+                }
+                ?>
+                
+                <!-- Action Buttons aligned inline in Horizontal, stacked in Vertical -->
+                <div class="uwo-filter-submit-group" style="<?php echo $layout === 'horizontal' ? 'display: flex; gap: 10px; align-items: flex-end; margin-bottom: 0; padding-bottom: 5px;' : 'margin-top: 15px;'; ?>">
+                    <button type="submit" class="uwo-filter-btn" style="cursor:pointer; padding: 6px 16px;">Lọc</button>
+                    <button type="button" class="uwo-clear-btn" onclick="var $f = jQuery('#<?php echo $unique_form_id; ?>'); $f.find('input[type=text], input[type=number], select').val(''); $f.find('input[type=checkbox]').prop('checked', false); $f.trigger('submit');" style="cursor:pointer; padding: 6px 16px;">Xoá lọc</button>
+                </div>
+            </div>
         </form>
 
-        <!-- Target display for matching results -->
+        <!-- Target display for matching results (Unstyled container wrapper) -->
         <div id="<?php echo $unique_form_id; ?>-results"></div>
 
         <script>
@@ -286,7 +353,26 @@ class FilterBuilder {
                 var $form = $('#<?php echo $unique_form_id; ?>');
                 var $results = $('#<?php echo $unique_form_id; ?>-results');
 
+                // Detect native WooCommerce products container
+                var $shopLoop = $('.products.row').first();
+                if ($shopLoop.length === 0) {
+                    $shopLoop = $('ul.products').first();
+                }
+
+                var isArchive = $shopLoop.length > 0;
+                if (isArchive) {
+                    $results = $shopLoop;
+                    // Hide original pagination
+                    $('.woocommerce-pagination, .pagination').hide();
+                }
+
                 $form.on('submit', function(e) {
+                    var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
+                    if (!enableAjax) {
+                        // Let GET submit redirect normally
+                        return;
+                    }
+
                     e.preventDefault();
                     
                     // Serialize form parameters
@@ -331,8 +417,10 @@ class FilterBuilder {
                     });
                 });
 
-                // Auto-submit form on load to show initial results
-                $form.trigger('submit');
+                // Auto-submit only on custom pages where there is no pre-rendered loop
+                if (!isArchive) {
+                    $form.trigger('submit');
+                }
             });
         </script>
         <?php

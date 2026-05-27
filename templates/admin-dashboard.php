@@ -212,9 +212,12 @@ if ($db_online) {
                                     <div style="display:flex; align-items:center; gap:15px;">
                                         <div style="display:flex; flex-direction:column; align-items:flex-end;">
                                             <span style="font-size:10px; color:#64748b; margin-bottom:3px; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">Click to Copy Shortcode</span>
-                                            <input type="text" readonly value='[uwo_filter id="<?php echo esc_attr($fid); ?>"]' class="uwo-copy-shortcode-input" title="Click to copy shortcode" style="width:230px; font-family:monospace; font-size:12px; padding:6px 10px; text-align:center; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:pointer; color:#a78bfa; transition:all 0.2s ease;" />
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <input type="text" readonly class="uwo-copy-shortcode-input" value='[uwo_filter id="<?php echo esc_attr($f['id']); ?>"]' style="font-family:monospace; font-size:12px; padding:5px 10px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.08); border-radius:6px; color:#cbd5e1; width:220px; cursor:pointer;" title="Click to copy Shortcode" />
+                                                <button type="button" class="uwo-btn uwo-edit-filter-btn" data-filter-json="<?php echo esc_attr(wp_json_encode($f)); ?>" style="padding:5px 12px; font-size:0.8rem; background:rgba(59,130,246,0.2); border-color:rgba(59,130,246,0.4); color:#93c5fd; cursor:pointer;">Edit</button>
+                                                <button type="button" class="uwo-delete-filter-btn" data-filter-id="<?php echo esc_attr($fid); ?>" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); color:#f87171; padding:8px 14px; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s ease; display:flex; align-items:center; gap:5px;"><span class="dashicons dashicons-trash" style="font-size:14px; width:14px; height:14px;"></span> Delete</button>
+                                            </div>
                                         </div>
-                                        <button type="button" class="uwo-delete-filter-btn" data-filter-id="<?php echo esc_attr($fid); ?>" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); color:#f87171; padding:8px 14px; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600; transition:all 0.2s ease; display:flex; align-items:center; gap:5px;"><span class="dashicons dashicons-trash" style="font-size:14px; width:14px; height:14px;"></span> Delete</button>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -228,15 +231,16 @@ if ($db_online) {
                     
                     <form id="uwo-filter-builder-form">
                         <?php wp_nonce_field('uwo-filter-builder-nonce', 'security'); ?>
+                        <input type="hidden" name="filter_id" id="uwo-filter-id-field" value="" />
                         
-                        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:20px; margin-bottom:25px;">
+                        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:20px; margin-bottom:25px;">
                             <div class="uwo-form-group" style="margin:0;">
                                 <label style="font-weight:600; color:#cbd5e1;">Filter Name</label>
-                                <input type="text" name="name" required placeholder="e.g. Shop Side Catalog Filter" style="background: rgba(255,255,255,0.03);" />
+                                <input type="text" name="name" id="uwo-filter-name-field" required placeholder="e.g. Shop Side Catalog Filter" style="background: rgba(255,255,255,0.03);" />
                             </div>
                             <div class="uwo-form-group" style="margin:0;">
                                 <label style="font-weight:600; color:#cbd5e1;">Target Post Type</label>
-                                <select name="post_type" required style="background: rgba(255,255,255,0.03);">
+                                <select name="post_type" id="uwo-filter-posttype-field" required style="background: rgba(255,255,255,0.03);">
                                     <?php foreach ($all_post_types as $slug => $obj) : 
                                         if (!in_array($slug, $enabled_post_types, true)) continue;
                                     ?>
@@ -246,9 +250,16 @@ if ($db_online) {
                             </div>
                             <div class="uwo-form-group" style="margin:0;">
                                 <label style="font-weight:600; color:#cbd5e1;">Filter Layout Mode</label>
-                                <select name="layout" style="background: rgba(255,255,255,0.03);">
+                                <select name="layout" id="uwo-filter-layout-field" style="background: rgba(255,255,255,0.03);">
                                     <option value="vertical">Vertical (Dọc)</option>
                                     <option value="horizontal">Horizontal (Ngang)</option>
+                                </select>
+                            </div>
+                            <div class="uwo-form-group" style="margin:0;">
+                                <label style="font-weight:600; color:#cbd5e1;">AJAX Filter Mode</label>
+                                <select name="enable_ajax" id="uwo-filter-ajax-field" style="background: rgba(255,255,255,0.03);">
+                                    <option value="1">AJAX Enabled (Bật)</option>
+                                    <option value="0">AJAX Disabled (Tắt - GET)</option>
                                 </select>
                             </div>
                         </div>
@@ -272,9 +283,9 @@ if ($db_online) {
                                     $nice_name = str_replace('cf_', '', $col);
                                     $nice_name = ucfirst(str_replace('_', ' ', $nice_name));
                                 ?>
-                                    <div class="uwo-column-row" style="display:grid; grid-template-columns: auto 2fr 2fr 2fr; gap:20px; align-items:center; padding:10px 15px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); border-radius:8px; transition:all 0.2s ease;">
+                                    <div class="uwo-column-row" data-column-key="<?php echo esc_attr($col); ?>" style="display:grid; grid-template-columns: auto 2.5fr 2fr 2fr 1.5fr; gap:15px; align-items:center; padding:10px 15px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); border-radius:8px; transition:all 0.2s ease;">
                                         <div style="display:flex; align-items:center;">
-                                            <input type="checkbox" class="uwo-column-checkbox" style="width:18px; height:18px; cursor:pointer;" />
+                                            <input type="checkbox" class="uwo-column-checkbox" name="fields_active[<?php echo esc_attr($col); ?>]" value="1" style="width:18px; height:18px; cursor:pointer;" />
                                         </div>
                                         <div style="font-weight:600; font-size:0.92rem; color:#f1f5f9; display:flex; align-items:center; gap:8px;">
                                             <span><?php echo esc_html($nice_name); ?></span>
@@ -291,6 +302,9 @@ if ($db_online) {
                                                     <option value="range">Range Field</option>
                                                 <?php endif; ?>
                                             </select>
+                                        </div>
+                                        <div>
+                                            <input type="text" name="fields[<?php echo esc_attr($col); ?>][width]" disabled placeholder="Width (e.g. 200px)" style="width:100%; font-size:12px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.02);" />
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -310,9 +324,9 @@ if ($db_online) {
                                 foreach ($taxonomies as $tax_name => $tax_obj) : 
                                     $nice_name = $tax_obj->label;
                                 ?>
-                                    <div class="uwo-column-row" style="display:grid; grid-template-columns: auto 2fr 2fr 2fr; gap:20px; align-items:center; padding:10px 15px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); border-radius:8px; transition:all 0.2s ease;">
+                                    <div class="uwo-column-row" data-column-key="<?php echo esc_attr($tax_name); ?>" style="display:grid; grid-template-columns: auto 2.5fr 2fr 2fr 1.5fr; gap:15px; align-items:center; padding:10px 15px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); border-radius:8px; transition:all 0.2s ease;">
                                         <div style="display:flex; align-items:center;">
-                                            <input type="checkbox" class="uwo-column-checkbox" style="width:18px; height:18px; cursor:pointer;" />
+                                            <input type="checkbox" class="uwo-column-checkbox" name="fields_active[<?php echo esc_attr($tax_name); ?>]" value="1" style="width:18px; height:18px; cursor:pointer;" />
                                         </div>
                                         <div style="font-weight:600; font-size:0.92rem; color:#f1f5f9; display:flex; align-items:center; gap:8px;">
                                             <span><?php echo esc_html($nice_name); ?></span>
@@ -326,6 +340,9 @@ if ($db_online) {
                                                 <option value="checkbox">Multi-Checkboxes</option>
                                                 <option value="select">Dropdown Select</option>
                                             </select>
+                                        </div>
+                                        <div>
+                                            <input type="text" name="fields[<?php echo esc_attr($tax_name); ?>][width]" disabled placeholder="Width (e.g. 200px)" style="width:100%; font-size:12px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.02);" />
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

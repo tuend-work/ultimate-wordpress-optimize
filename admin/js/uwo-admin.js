@@ -290,4 +290,53 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    // 5. Edit Filter: load existing filter settings back into form for editing
+    $(document).on('click', '.uwo-edit-filter-btn', function(e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+        var filterData = $btn.data('filter-json');
+        if (!filterData) return;
+
+        // Populate basic settings
+        $('#uwo-filter-id-field').val(filterData.id);
+        $('#uwo-filter-name-field').val(filterData.name);
+        $('#uwo-filter-posttype-field').val(filterData.post_type);
+        $('#uwo-filter-layout-field').val(filterData.layout || 'vertical');
+        $('#uwo-filter-ajax-field').val(filterData.enable_ajax !== undefined ? filterData.enable_ajax : '1');
+
+        // Uncheck all checklist rows first and disable their fields
+        $('.uwo-column-checkbox').prop('checked', false);
+        $('.uwo-column-row').find('input[type="text"], select').prop('disabled', true);
+        $('.uwo-column-row').css('background', 'rgba(255, 255, 255, 0.01)').css('border-color', 'rgba(255, 255, 255, 0.02)');
+
+        // Populate fields checklist
+        if (filterData.fields) {
+            $.each(filterData.fields, function(colKey, settings) {
+                var $row = $('.uwo-column-row[data-column-key="' + colKey + '"]');
+                if ($row.length > 0) {
+                    var $checkbox = $row.find('.uwo-column-checkbox');
+                    $checkbox.prop('checked', true);
+                    
+                    // Enable and populate values
+                    $row.find('input[type="text"], select').prop('disabled', false);
+                    $row.find('input[name="fields[' + colKey + '][label]"]').val(settings.label || '');
+                    $row.find('select[name="fields[' + colKey + '][type]"]').val(settings.type || 'checkbox');
+                    $row.find('input[name="fields[' + colKey + '][width]"]').val(settings.width || '');
+                    
+                    // Style row as active
+                    $row.css('background', 'rgba(139, 92, 246, 0.05)').css('border-color', 'rgba(139, 92, 246, 0.3)');
+                }
+            });
+        }
+
+        // Change submit button text
+        $('#uwo-create-filter-btn').text('Update Filter Shortcode');
+
+        // Scroll smoothly to form
+        $('html, body').animate({
+            scrollTop: $('#uwo-filter-builder-form').offset().top - 100
+        }, 500);
+    });
 });
