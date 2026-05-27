@@ -243,13 +243,14 @@ if ($db_online) {
                         </div>
 
                         <div class="uwo-form-group">
-                            <label style="font-weight:600; color:#cbd5e1; margin-bottom:12px;">Select Index Table Columns to Filter</label>
+                            <label style="font-weight:600; color:#cbd5e1; margin-bottom:12px;">Select Columns & Taxonomies to Filter</label>
                             <p style="color:#94a3b8; font-size:0.8rem; margin:-5px 0 15px 0; line-height:1.4;">
-                                Toggle check on columns you want to offer as active filter widgets. Customize their public display label and choose control widget.
+                                Toggle check on database columns or taxonomies (categories/tags) you want to offer as active filter widgets.
                             </p>
 
-                            <!-- Column Config Rows -->
+                            <!-- Column & Taxonomy Config Rows -->
                             <div style="display:grid; gap:12px; background:rgba(0,0,0,0.15); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.03);">
+                                <div style="color: #a78bfa; font-weight:600; font-size:0.9rem; margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:5px;">Database Schema Columns</div>
                                 <?php 
                                 $db = \UWO\Database::get_instance();
                                 $columns = $db->get_table_columns();
@@ -278,6 +279,41 @@ if ($db_online) {
                                                 <?php if ($col === 'price' || strpos($col, 'cf_') === 0) : ?>
                                                     <option value="range">Range Field</option>
                                                 <?php endif; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+
+                                <div style="color: #a78bfa; font-weight:600; font-size:0.9rem; margin-top:15px; margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:5px;">Registered Taxonomies (Categories, Tags)</div>
+                                <?php 
+                                $taxonomies = array();
+                                foreach ($enabled_post_types as $pt) {
+                                    $pt_taxes = get_object_taxonomies($pt, 'objects');
+                                    foreach ($pt_taxes as $tax) {
+                                        if ($tax->public && $tax->show_ui) {
+                                            $taxonomies[$tax->name] = $tax;
+                                        }
+                                    }
+                                }
+
+                                foreach ($taxonomies as $tax_name => $tax_obj) : 
+                                    $nice_name = $tax_obj->label;
+                                ?>
+                                    <div class="uwo-column-row" style="display:grid; grid-template-columns: auto 2fr 2fr 2fr; gap:20px; align-items:center; padding:10px 15px; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.02); border-radius:8px; transition:all 0.2s ease;">
+                                        <div style="display:flex; align-items:center;">
+                                            <input type="checkbox" class="uwo-column-checkbox" style="width:18px; height:18px; cursor:pointer;" />
+                                        </div>
+                                        <div style="font-weight:600; font-size:0.92rem; color:#f1f5f9; display:flex; align-items:center; gap:8px;">
+                                            <span><?php echo esc_html($nice_name); ?></span>
+                                            <code style="font-size:10px; color:#3b82f6; background:rgba(59,130,246,0.1); padding:1px 6px; border-radius:4px; font-weight:400;"><?php echo esc_html($tax_name); ?></code>
+                                        </div>
+                                        <div>
+                                            <input type="text" name="fields[<?php echo esc_attr($tax_name); ?>][label]" disabled placeholder="<?php echo esc_attr($nice_name); ?>" style="width:100%; font-size:12px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.02);" />
+                                        </div>
+                                        <div>
+                                            <select name="fields[<?php echo esc_attr($tax_name); ?>][type]" disabled style="width:100%; font-size:12px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.02);">
+                                                <option value="checkbox">Multi-Checkboxes</option>
+                                                <option value="select">Dropdown Select</option>
                                             </select>
                                         </div>
                                     </div>

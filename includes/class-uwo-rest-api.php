@@ -108,21 +108,33 @@ class RestApi {
             );
         }
 
-        // Dynamically parse all valid table columns from request parameters
+        // Dynamically parse all valid table columns and registered taxonomies from request parameters
         $db = Database::get_instance();
         $db_cols = $db->get_table_columns();
         foreach ($params as $key => $value) {
-            $col = sanitize_key($key);
-            if (in_array($col, $db_cols, true)) {
+            $param_key = sanitize_key($key);
+
+            // 1. If it is a registered taxonomy (like product_cat, product_tag, etc.)
+            if (taxonomy_exists($param_key)) {
+                $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
+                $args['tax_query'][] = array(
+                    'taxonomy' => $param_key,
+                    'field'    => 'slug',
+                    'terms'    => $sanitized_value,
+                    'operator' => is_array($value) ? 'IN' : 'AND',
+                );
+            }
+            // 2. If it is a valid database column
+            elseif (in_array($param_key, $db_cols, true)) {
                 // Avoid duplicating price/metadata filters
-                if (in_array($col, array('price', 'id', 'post_id', 'parent_id', 'post_type', 'slug', 'payload_json', 'search_text', 'updated_at', 'attributes_filter'), true)) {
+                if (in_array($param_key, array('price', 'id', 'post_id', 'parent_id', 'post_type', 'slug', 'payload_json', 'search_text', 'updated_at', 'attributes_filter'), true)) {
                     continue;
                 }
 
                 $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
 
                 // For custom fields cf_something, key is 'something' (to be stripped of cf_)
-                $meta_key = (strpos($col, 'cf_') === 0) ? substr($col, 3) : $col;
+                $meta_key = (strpos($param_key, 'cf_') === 0) ? substr($param_key, 3) : $param_key;
 
                 $args['meta_query'][] = array(
                     'key'     => $meta_key,

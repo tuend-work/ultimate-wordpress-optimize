@@ -43,13 +43,28 @@ class FilterBuilder {
     }
 
     /**
-     * Scan unique column values directly from the flat MySQL table.
+     * Scan unique column or taxonomy values.
      */
     public function get_unique_column_values($column) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'uwo_items_index';
-        
-        // Sanitize column name strictly to prevent SQL injection
+
+        // 1. If it is a registered taxonomy (e.g. product_cat, product_tag)
+        if (taxonomy_exists($column)) {
+            $terms = get_terms(array(
+                'taxonomy'   => $column,
+                'hide_empty' => true,
+            ));
+            $mapped = array();
+            if (!is_wp_error($terms) && !empty($terms)) {
+                foreach ($terms as $term) {
+                    $mapped[$term->slug] = $term->name;
+                }
+            }
+            return $mapped;
+        }
+
+        // 2. Sanitize column name strictly to prevent SQL injection
         $column = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
         if (empty($column)) {
             return array();
@@ -77,7 +92,32 @@ class FilterBuilder {
                 }
             }
         }
-        return array_unique(array_filter($cleaned));
+        $cleaned = array_unique(array_filter($cleaned));
+
+        // Build unified [value => label] array
+        $mapped = array();
+        foreach ($cleaned as $val) {
+            if ($column === 'primary_cat_id') {
+                $term = get_term((int)$val);
+                if ($term && !is_wp_error($term)) {
+                    $mapped[$val] = $term->name;
+                } else {
+                    $mapped[$val] = $val;
+                }
+            } elseif ($column === 'stock_status') {
+                if ($val === 'instock') {
+                    $mapped[$val] = __('In Stock', 'ultimate-wordpress-optimize');
+                } elseif ($val === 'outofstock') {
+                    $mapped[$val] = __('Out of Stock', 'ultimate-wordpress-optimize');
+                } else {
+                    $mapped[$val] = ucfirst($val);
+                }
+            } else {
+                $mapped[$val] = $val;
+            }
+        }
+
+        return $mapped;
     }
 
     /**
@@ -373,31 +413,8 @@ class FilterBuilder {
                             </div>
                         // Dropdown Select or Checkboxes
                         else : 
-                            $values = $this->get_unique_column_values($column);
-                            if (empty($values)) continue;
-
-                            // Map raw database values to human-friendly display labels
-                            $mapped_options = array();
-                            foreach ($values as $val) {
-                                if ($column === 'primary_cat_id') {
-                                    $term = get_term((int)$val);
-                                    if ($term && !is_wp_error($term)) {
-                                        $mapped_options[$val] = $term->name;
-                                    } else {
-                                        $mapped_options[$val] = $val;
-                                    }
-                                } elseif ($column === 'stock_status') {
-                                    if ($val === 'instock') {
-                                        $mapped_options[$val] = __('In Stock', 'ultimate-wordpress-optimize');
-                                    } elseif ($val === 'outofstock') {
-                                        $mapped_options[$val] = __('Out of Stock', 'ultimate-wordpress-optimize');
-                                    } else {
-                                        $mapped_options[$val] = ucfirst($val);
-                                    }
-                                } else {
-                                    $mapped_options[$val] = $val;
-                                }
-                            }
+                            $mapped_options = $this->get_unique_column_values($column);
+                            if (empty($mapped_options)) continue;
                         ?>
                             <div class="uwo-fe-filter-widget">
                                 <h4><?php echo esc_html($label); ?></h4>
