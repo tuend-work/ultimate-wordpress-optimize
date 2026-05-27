@@ -1,0 +1,16 @@
+{
+    "name": "uwo/ultimate-woocommerce-optimize",
+    "description": "Universal Flat Indexing and search acceleration engine for WooCommerce and Custom Post Types.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4",
+        "predis/predis": "^2.0",
+        "opensearch-project/opensearch-php": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "UWO\\": "includes/"
+        }
+    }
+}
