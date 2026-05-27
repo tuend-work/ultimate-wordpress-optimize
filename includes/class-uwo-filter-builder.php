@@ -243,6 +243,33 @@ class FilterBuilder {
 
         $enable_ajax = isset($filter['enable_ajax']) ? (int)$filter['enable_ajax'] : 1;
 
+        // Generate a term permalinks lookup table in PHP for dynamic JavaScript URL switching (supports custom categories pretty links)
+        $term_permalinks = array();
+        $taxonomies = get_object_taxonomies($post_type);
+        if (!empty($taxonomies)) {
+            foreach ($taxonomies as $taxonomy) {
+                $terms = get_terms(array(
+                    'taxonomy'   => $taxonomy,
+                    'hide_empty' => false,
+                ));
+                if (!is_wp_error($terms) && !empty($terms)) {
+                    foreach ($terms as $term) {
+                        $link = get_term_link($term);
+                        if (!is_wp_error($link)) {
+                            $term_permalinks[$taxonomy][$term->slug] = $link;
+                        }
+                    }
+                }
+            }
+        }
+        
+        $shop_page_url = '';
+        if (function_exists('wc_get_page_permalink')) {
+            $shop_page_url = wc_get_page_permalink('shop');
+        } else {
+            $shop_page_url = home_url('/shop');
+        }
+
         ob_start();
         $unique_form_id = 'uwo-filter-form-' . esc_attr($filter['id']);
         $layout = !empty($filter['layout']) ? $filter['layout'] : 'vertical';
@@ -407,22 +434,66 @@ class FilterBuilder {
                     // Add page parameter explicitly
                     params['page'] = pageNum || 1;
 
-                    // Update browser address bar in real-time
-                    var currentUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    // Determine correct base URL for Pretty Permalinks in real-time
+                    var basePageUrl = '<?php echo esc_js($form_action); ?>';
+                    var shopPageUrl = '<?php echo esc_js($shop_page_url); ?>';
+                    var permalinks = <?php echo json_encode($term_permalinks); ?>;
+                    
+                    // Look at the selected categories
+                    var selectedCats = [];
+                    if (params['product_cat']) {
+                        if (Array.isArray(params['product_cat'])) {
+                            selectedCats = params['product_cat'];
+                        } else {
+                            selectedCats = [params['product_cat']];
+                        }
+                    }
+
+                    // If exactly one category is selected, change the base URL to its pretty permalink!
+                    var prettyBaseUrl = '';
+                    if (selectedCats.length === 1 && permalinks['product_cat'] && permalinks['product_cat'][selectedCats[0]]) {
+                        prettyBaseUrl = permalinks['product_cat'][selectedCats[0]];
+                    } else if (selectedCats.length === 0) {
+                        // If no category is selected, fall back to the default shop page URL
+                        prettyBaseUrl = shopPageUrl;
+                    }
+
+                    // Clean the pretty base URL to use it
+                    var finalBaseUrl = prettyBaseUrl ? prettyBaseUrl : basePageUrl;
                     var urlParams = $.extend({}, params);
+                    
+                    // If we successfully set a pretty base URL for the category, we can remove 'product_cat' from the query parameters!
+                    if (prettyBaseUrl && prettyBaseUrl !== basePageUrl) {
+                        delete urlParams['product_cat'];
+                    }
+                    
+                    delete urlParams['page'];
+                    delete urlParams['post_type']; // Exclude post_type to keep the URL clean
                     if (pageNum > 1) {
                         urlParams['paged'] = pageNum;
                     }
-                    delete urlParams['page'];
-                    delete urlParams['post_type']; // Exclude post_type to keep the URL clean
-                    
-                    // Exclude the current archive category/taxonomy term from URL query since it's already in the pretty permalink path!
-                    if (currentTax && urlParams[currentTax]) {
+
+                    // Remove currentTax from URL params if we are on its archive page and no categories selected or same selected
+                    if (currentTax && urlParams[currentTax] && !prettyBaseUrl) {
                         delete urlParams[currentTax];
                     }
+
+                    // Strip any existing query variables from finalBaseUrl before appending the new ones
+                    var urlParts = finalBaseUrl.split('?');
+                    var cleanBaseUrl = urlParts[0];
                     
+                    // Merge any query vars from the pretty term link if they exist
+                    if (urlParts[1]) {
+                        var baseQueryArgs = {};
+                        $.each(urlParts[1].split('&'), function(_, pair) {
+                            var p = pair.split('=');
+                            if (p[0]) baseQueryArgs[p[0]] = p[1] || '';
+                        });
+                        urlParams = $.extend(baseQueryArgs, urlParams);
+                    }
+
                     var queryString = $.param(urlParams);
-                    var newUrl = currentUrl + (queryString ? '?' + queryString : '');
+                    var newUrl = cleanBaseUrl + (queryString ? '?' + queryString : '');
                     window.history.pushState({ path: newUrl }, '', newUrl);
 
                     // Build request query parameters

@@ -198,51 +198,50 @@ class RestApi {
                     echo '</div>';
                 }
 
-                // Render standard pagination links using theme/WooCommerce native templates
+                // Render standard pagination links using WooCommerce/Flatsome's identical HTML structure (immune to REST API guards)
                 $total_pages = ceil($results['total'] / $args['posts_per_page']);
                 if ($total_pages > 1) {
-                    global $wp_query;
-                    $original_wp_query = $wp_query;
-
-                    $mock_query = new \WP_Query();
-                    $mock_query->max_num_pages = $total_pages;
-                    $mock_query->query_vars['paged'] = max(1, $args['paged']);
-                    $mock_query->found_posts = $results['total'];
-                    $mock_query->posts_per_page = $args['posts_per_page'];
+                    // Determine clean pretty base URL for pagination links (independent of REST API URL context)
+                    $base_url = '';
+                    if (!empty($params['product_cat'])) {
+                        $cat_slugs = is_array($params['product_cat']) ? $params['product_cat'] : explode(',', $params['product_cat']);
+                        if (!empty($cat_slugs[0])) {
+                            $term = get_term_by('slug', $cat_slugs[0], 'product_cat');
+                            if ($term && !is_wp_error($term)) {
+                                $base_url = get_term_link($term);
+                            }
+                        }
+                    }
                     
-                    $wp_query = $mock_query;
-
-                    $orig_total_pages = null;
-                    $orig_current_page = null;
-                    $had_loop_prop = false;
-
-                    if ($args['post_type'] === 'product' && function_exists('wc_set_loop_prop') && function_exists('wc_get_loop_prop')) {
-                        $orig_total_pages = wc_get_loop_prop('total_pages');
-                        $orig_current_page = wc_get_loop_prop('current_page');
-                        wc_set_loop_prop('total_pages', $total_pages);
-                        wc_set_loop_prop('current_page', max(1, $args['paged']));
-                        $had_loop_prop = true;
+                    if (empty($base_url) || is_wp_error($base_url)) {
+                        $base_url = function_exists('wc_get_page_permalink') ? wc_get_page_permalink('shop') : home_url('/shop');
                     }
 
-                    if ($args['post_type'] === 'product' && function_exists('woocommerce_pagination')) {
-                        // Output WooCommerce native pagination template (loads loop/pagination.php)
-                        woocommerce_pagination();
-                    } else {
-                        // Standard WordPress/Theme fallback using default pagination template
-                        the_posts_pagination(array(
-                            'prev_text'          => '&larr;',
-                            'next_text'          => '&rarr;',
-                            'screen_reader_text' => ' ', // hide screen reader heading
-                        ));
-                    }
+                    // Format base URL for paginate_links
+                    $pagination_base = esc_url_raw(add_query_arg('paged', '%#%', $base_url));
+                    $current_page = max(1, $args['paged']);
 
-                    // Restore original global $wp_query and loop properties to avoid side-effects
-                    $wp_query = $original_wp_query;
-                    if ($had_loop_prop) {
-                        wc_set_loop_prop('total_pages', $orig_total_pages);
-                        wc_set_loop_prop('current_page', $orig_current_page);
-                    }
+                    echo '<nav class="woocommerce-pagination">';
+                    echo paginate_links(
+                        apply_filters(
+                            'woocommerce_pagination_args',
+                            array(
+                                'base'      => $pagination_base,
+                                'format'    => '?paged=%#%',
+                                'add_args'  => false,
+                                'current'   => $current_page,
+                                'total'     => $total_pages,
+                                'prev_text' => is_rtl() ? '&rarr;' : '&larr;',
+                                'next_text' => is_rtl() ? '&larr;' : '&rarr;',
+                                'type'      => 'list',
+                                'end_size'  => 3,
+                                'mid_size'  => 3,
+                            )
+                        )
+                    );
+                    echo '</nav>';
                 }
+
                 
                 wp_reset_postdata();
             } else {
