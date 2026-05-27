@@ -35,8 +35,8 @@ graph TD
 Chúng ta sẽ khởi tạo cấu trúc thư mục tiêu chuẩn, sạch sẽ và tuân thủ PSR-4 của WordPress:
 
 ```text
-ultimate-woocommerce-optimize/
-├── ultimate-woocommerce-optimize.php      # File chính bootstrap plugin
+ultimate-wordpress-optimize/
+├── ultimate-wordpress-optimize.php      # File chính bootstrap plugin
 ├── composer.json                          # Quản lý thư viện (Predis, OpenSearch SDK)
 ├── includes/
 │   ├── class-uwo-activator.php            # Khởi tạo custom tables khi kích hoạt
@@ -44,7 +44,7 @@ ultimate-woocommerce-optimize/
 │   ├── class-uwo-database.php             # Quản lý schema, thao tác đọc/ghi & tự động ALTER TABLE
 │   ├── class-uwo-sync-engine.php          # Lắng nghe hooks và trích xuất dữ liệu thô sang Flat
 │   ├── class-uwo-redis.php                # Giao tiếp với Redis (Cache, Lock, Queue)
-│   ├── class-uwo-opensearch.php           # Giao tiếp với OpenSearch / Elasticsearch
+│   ├── class-uwo-open-search.php          # Giao tiếp với OpenSearch / Elasticsearch
 │   ├── class-uwo-query-engine.php         # Thay thế bộ query mặc định của WC & hỗ trợ Faceted Filter
 │   └── class-uwo-rest-api.php             # Cung cấp các API Endpoint tối ưu siêu tốc cho Headless
 ├── admin/
