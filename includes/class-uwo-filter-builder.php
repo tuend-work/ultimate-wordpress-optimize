@@ -373,7 +373,9 @@ class FilterBuilder {
         </form>
 
         <!-- Target display for matching results (Unstyled container wrapper) -->
-        <div id="<?php echo $unique_form_id; ?>-results"></d        <script>
+        <div id="<?php echo $unique_form_id; ?>-results"></div>
+
+        <script>
             jQuery(document).ready(function($) {
                 var uniqueFormId = '<?php echo $unique_form_id; ?>';
                 var currentTax = '<?php echo esc_js($current_tax); ?>';
