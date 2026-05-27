@@ -198,7 +198,20 @@ class SyncEngine {
 
         // 5. Populate flat MySQL structure
         $db = Database::get_instance();
+        
+        // Dynamic Column Engine: Check and create columns for existing custom fields on the fly during sync
         $columns = $db->get_table_columns();
+        $columns_updated = false;
+        foreach ($custom_fields_payload as $key => $val) {
+            $column_name = 'cf_' . sanitize_key($key);
+            if (!in_array($column_name, $columns, true)) {
+                $db->add_dynamic_column($column_name);
+                $columns_updated = true;
+            }
+        }
+        if ($columns_updated) {
+            $columns = $db->get_table_columns(true);
+        }
 
         $data = array(
             'post_id' => $post_id,
