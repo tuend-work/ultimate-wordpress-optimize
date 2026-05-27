@@ -373,12 +373,9 @@ class FilterBuilder {
         </form>
 
         <!-- Target display for matching results (Unstyled container wrapper) -->
-        <div id="<?php echo $unique_form_id; ?>-results"></div>
-
-        <script>
+        <div id="<?php echo $unique_form_id; ?>-results"></d        <script>
             jQuery(document).ready(function($) {
-                var $form = $('#<?php echo $unique_form_id; ?>');
-                var $results = $('#<?php echo $unique_form_id; ?>-results');
+                var uniqueFormId = '<?php echo $unique_form_id; ?>';
                 var currentTax = '<?php echo esc_js($current_tax); ?>';
                 var currentTerm = '<?php echo esc_js($current_term); ?>';
 
@@ -392,13 +389,15 @@ class FilterBuilder {
                 if (isArchive) {
                     // Wrap the shop loop inside a persistent container to prevent DOM destruction and keep pagination outside products list
                     $shopLoop.wrap('<div class="uwo-archive-wrapper"></div>');
-                    $results = $shopLoop.parent('.uwo-archive-wrapper');
                     
                     // Hide theme's original pagination
                     $('.woocommerce-pagination, .pagination').hide();
                 }
 
                 function performSearch(pageNum) {
+                    var $form = $('#' + uniqueFormId);
+                    if ($form.length === 0) return;
+
                     var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
                     if (!enableAjax) {
                         // Standard non-AJAX query submit
@@ -510,80 +509,76 @@ class FilterBuilder {
                     // Query the exact pretty URL with query args, fetching the full compiled page from the server
                     var requestUrl = newUrl;
                     
-                    $results.css('opacity', '0.5');
+                    // Determine the best page content container to replace (Flatsome/WooCommerce main wrappers)
+                    var containerSelector = '#main';
+                    if ($(containerSelector).length === 0) containerSelector = '#primary';
+                    if ($(containerSelector).length === 0) containerSelector = '#content';
+                    if ($(containerSelector).length === 0) containerSelector = '.shop-container';
+                    if ($(containerSelector).length === 0) containerSelector = '.uwo-archive-wrapper';
+                    if ($(containerSelector).length === 0) containerSelector = '#' + uniqueFormId + '-results';
+
+                    var $mainContainer = $(containerSelector).first();
+                    $mainContainer.css('opacity', '0.5');
 
                     $.ajax({
                         url: requestUrl,
                         method: 'GET',
                         success: function(response) {
-                            $results.css('opacity', '1');
-                            
                             // Safe parsing of the full HTML response without executing scripts or duplicate trackers
                             var parsedHtml = $.parseHTML(response, null, false);
                             var $parsed = $('<div>').append(parsedHtml);
                             
-                            var selector = isArchive ? '.uwo-archive-wrapper' : '#<?php echo $unique_form_id; ?>-results';
-                            var $newContent = $parsed.find(selector);
-                            
-                            if ($newContent.length > 0) {
-                                $results.html($newContent.html());
+                            var $newContainer = $parsed.find(containerSelector).first();
+                            if ($newContainer.length > 0) {
+                                $newContainer.css('opacity', '1');
+                                $mainContainer.replaceWith($newContainer);
+                                
+                                // Clean up duplicate static theme pagination that might be rendered on page updates
+                                if (isArchive) {
+                                    $('.woocommerce-pagination, .pagination').not('.uwo-archive-wrapper .woocommerce-pagination, .uwo-archive-wrapper .pagination').hide();
+                                }
                             } else {
-                                // Fallback in case the wrapper isn't found in the response
-                                var $fallbackContent = $parsed.find('.products.row, ul.products, .products');
-                                if ($fallbackContent.length > 0) {
-                                    $results.html($fallbackContent.parent().html());
-                                } else {
-                                    $results.empty().append('<p class="woocommerce-info" style="width: 100%; text-align: center;">Không tìm thấy sản phẩm nào khớp với lựa chọn của bạn.</p>');
+                                // Fallback: update only results container
+                                $mainContainer.css('opacity', '1');
+                                var $newContent = $parsed.find('#' + uniqueFormId + '-results');
+                                if ($newContent.length > 0) {
+                                    $('#' + uniqueFormId + '-results').html($newContent.html());
                                 }
                             }
-                            
-                            // Dynamically update standard WooCommerce archive widgets like result counts and ordering dropdowns
-                            var components = [
-                                '.woocommerce-result-count',
-                                '.woocommerce-ordering',
-                                '.woocommerce-pagination',
-                                '.pagination'
-                            ];
-                            
-                            $.each(components, function(_, compSelector) {
-                                // Only update components that are outside the results container on the page
-                                if ($(compSelector).closest(selector).length === 0) {
-                                    var $newComp = $parsed.find(compSelector).first();
-                                    if ($newComp.length > 0) {
-                                        $(compSelector).first().replaceWith($newComp);
-                                    } else {
-                                        $(compSelector).first().hide();
-                                    }
-                                }
-                            });
                         },
                         error: function() {
-                            $results.css('opacity', '1');
-                            $results.empty().append('<p style="width: 100%; text-align: center; color: #ef4444;">Failed to fetch results. Check console.</p>');
+                            $mainContainer.css('opacity', '1');
+                            alert('Failed to fetch results. Check console.');
                         }
                     });
                 }
 
-                // Submit Form Event
-                $form.on('submit', function(e) {
+                // Submit Form Event (Delegated to document for persistent DOM-swaps)
+                $(document).on('submit', '#' + uniqueFormId, function(e) {
                     e.preventDefault();
                     performSearch(1); // Starting new filter always resets to page 1
                 });
 
                 // Whenever any field changes, submit the form to reset to page 1 using robust delegated events
-                $form.on('change', 'input, select', function() {
+                $(document).on('change', '#' + uniqueFormId + ' input, #' + uniqueFormId + ' select', function() {
                     var inputType = $(this).attr('type');
                     if (inputType === 'text' || inputType === 'number') {
                         return; // Ignore typing in search or price range boxes (allow typing multi-digit numbers freely)
                     }
-                    $form.trigger('submit');
+                    $('#' + uniqueFormId).trigger('submit');
                 });
 
-                // Intercept AJAX pagination link clicks inside results wrapper
-                $results.on('click', '.woocommerce-pagination a, .pagination a, .navigation.pagination a', function(e) {
+                // Intercept AJAX pagination link clicks inside the dynamic results wrapper or body
+                $(document).on('click', '.woocommerce-pagination a, .pagination a, .navigation.pagination a', function(e) {
                     var enableAjax = <?php echo $enable_ajax ? 'true' : 'false'; ?>;
                     if (!enableAjax) {
                         return; // Let GET link trigger redirect naturally
+                    }
+
+                    // Only intercept if we are in archive mode or click is inside our results container
+                    var isInsideResults = $(this).closest('#' + uniqueFormId + '-results, .uwo-archive-wrapper').length > 0;
+                    if (!isArchive && !isInsideResults) {
+                        return;
                     }
 
                     e.preventDefault();
@@ -605,11 +600,13 @@ class FilterBuilder {
                     performSearch(pageNum);
 
                     // Smooth scroll back to form
-                    $('html, body').animate({
-                        scrollTop: $form.offset().top - 100
-                    }, 500);
+                    var $form = $('#' + uniqueFormId);
+                    if ($form.length > 0) {
+                        $('html, body').animate({
+                            scrollTop: $form.offset().top - 100
+                        }, 500);
+                    }
                 });
-
             });
         </script>
         <?php
