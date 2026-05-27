@@ -280,6 +280,9 @@ class FilterBuilder {
             <div class="<?php echo esc_attr($layout); ?>" style="<?php echo $layout === 'horizontal' ? 'display: flex; flex-wrap: wrap; align-items: flex-end; gap: 15px;' : ''; ?>">
                 <?php foreach ($filter['fields'] as $column => $settings) : 
                     $label = $settings['label'];
+                    if (strtolower($column) === 'product_cat' && (empty($label) || strtolower($label) === 'product_cat')) {
+                        $label = 'Danh mục';
+                    }
                     $type = $settings['type'];
                     $width = !empty($settings['width']) ? $settings['width'] : '';
                     $style_attr = !empty($width) ? 'style="width:' . esc_attr($width) . ';"' : '';
@@ -323,9 +326,19 @@ class FilterBuilder {
                                 if (empty($selected_val) && $column === $current_tax) {
                                     $selected_val = $current_term;
                                 }
+                                
+                                $placeholder_label = esc_html($label);
+                                if (strtolower($column) === 'product_cat') {
+                                    $placeholder_label = 'danh mục';
+                                } else {
+                                    $placeholder_label = str_replace('cf_', '', $placeholder_label);
+                                    $placeholder_label = str_replace('_', ' ', $placeholder_label);
+                                    $placeholder_label = mb_strtolower($placeholder_label, 'UTF-8');
+                                }
+                                $placeholder_text = 'Chọn ' . $placeholder_label;
                             ?>
                                 <select name="<?php echo esc_attr($column); ?>" style="width: 100%;">
-                                    <option value=""><?php printf(__('All %s', 'ultimate-wordpress-optimize'), esc_html($label)); ?></option>
+                                    <option value=""><?php echo esc_html($placeholder_text); ?></option>
                                     <?php foreach ($mapped_options as $val => $display_name) : 
                                         $selected = ($val === $selected_val) ? 'selected="selected"' : '';
                                     ?>
@@ -538,6 +551,11 @@ class FilterBuilder {
                                     $('#' + uniqueFormId + '-results').html($newContent.html());
                                 }
                             }
+
+                            // Smooth scroll to top of the content container (accounting for sticky navigation menus)
+                            var scrollOffset = $(containerSelector).first().offset();
+                            var scrollTopPos = (scrollOffset && scrollOffset.top > 100) ? scrollOffset.top - 100 : 0;
+                            $('html, body').animate({ scrollTop: scrollTopPos }, 400);
                         },
                         error: function() {
                             $mainContainer.css('opacity', '1');
