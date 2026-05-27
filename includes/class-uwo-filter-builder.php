@@ -460,36 +460,47 @@ class FilterBuilder {
 
                     // Clean the pretty base URL to use it
                     var finalBaseUrl = prettyBaseUrl ? prettyBaseUrl : basePageUrl;
+                    
+                    // Split finalBaseUrl into base path and query parameters
+                    var urlParts = finalBaseUrl.split('?');
+                    var cleanBaseUrl = urlParts[0];
+                    
+                    // Initialize urlParams with all params from form
                     var urlParams = $.extend({}, params);
                     
-                    // If we successfully set a pretty base URL for the category, we can remove 'product_cat' from the query parameters!
-                    if (prettyBaseUrl && prettyBaseUrl !== basePageUrl) {
+                    // Merge any query parameters from finalBaseUrl into urlParams first!
+                    if (urlParts[1]) {
+                        $.each(urlParts[1].split('&'), function(_, pair) {
+                            var p = pair.split('=');
+                            if (p[0]) {
+                                var key = decodeURIComponent(p[0]);
+                                var val = decodeURIComponent(p[1] || '');
+                                // Only override if not already set by the form
+                                if (urlParams[key] === undefined) {
+                                    urlParams[key] = val;
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Now perform all the sanitization/deletions on the merged urlParams!
+                    if (prettyBaseUrl) {
                         delete urlParams['product_cat'];
+                        delete urlParams['product_cat[]'];
                     }
                     
                     delete urlParams['page'];
                     delete urlParams['post_type']; // Exclude post_type to keep the URL clean
+                    
                     if (pageNum > 1) {
                         urlParams['paged'] = pageNum;
+                    } else {
+                        delete urlParams['paged'];
                     }
 
                     // Remove currentTax from URL params if we are on its archive page and no categories selected or same selected
                     if (currentTax && urlParams[currentTax] && !prettyBaseUrl) {
                         delete urlParams[currentTax];
-                    }
-
-                    // Strip any existing query variables from finalBaseUrl before appending the new ones
-                    var urlParts = finalBaseUrl.split('?');
-                    var cleanBaseUrl = urlParts[0];
-                    
-                    // Merge any query vars from the pretty term link if they exist
-                    if (urlParts[1]) {
-                        var baseQueryArgs = {};
-                        $.each(urlParts[1].split('&'), function(_, pair) {
-                            var p = pair.split('=');
-                            if (p[0]) baseQueryArgs[p[0]] = p[1] || '';
-                        });
-                        urlParams = $.extend(baseQueryArgs, urlParams);
                     }
 
                     var queryString = $.param(urlParams);

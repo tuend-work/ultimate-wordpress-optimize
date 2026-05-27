@@ -221,7 +221,8 @@ class RestApi {
                     $pagination_base = esc_url_raw(add_query_arg('paged', '%#%', $base_url));
                     $current_page = max(1, $args['paged']);
 
-                    echo '<nav class="woocommerce-pagination">';
+                    echo '<div class="container text-center" style="width: 100%; margin-top: 30px; margin-bottom: 30px;">';
+                    echo '<nav class="woocommerce-pagination pagination pagination-centered">';
                     echo paginate_links(
                         apply_filters(
                             'woocommerce_pagination_args',
@@ -240,6 +241,7 @@ class RestApi {
                         )
                     );
                     echo '</nav>';
+                    echo '</div>';
                 }
 
                 
