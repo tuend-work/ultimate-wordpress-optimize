@@ -31,8 +31,13 @@ class QueryEngine {
      * Intercept standard WP_Query requests for accelerated CPTs and optimize them.
      */
     public function intercept_posts_query($posts, $query) {
-        // Avoid intercepting inside admin dashboard or for non-front queries
-        if (is_admin() || !$query->is_main_query()) {
+        // Avoid intercepting inside admin, non-main queries, singular views, or specific post ID/slug lookups
+        if (is_admin() || !$query->is_main_query() || $query->is_singular() || $query->is_single() || $query->is_page()) {
+            return $posts;
+        }
+
+        // Avoid if targeting a specific post via parameters directly
+        if ($query->get('p') || $query->get('name') || $query->get('page_id') || $query->get('pagename')) {
             return $posts;
         }
 
