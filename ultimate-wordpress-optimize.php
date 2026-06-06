@@ -3,7 +3,7 @@
  * Plugin Name: Ultimate WordPress Optimize
  * Plugin URI: https://github.com/tuend-work/ultimate-wordpress-optimize
  * Description: Universal Flat Indexing, Redis Caching, and OpenSearch engine to supercharge Custom Post Types search & filtering.
- * Version: 1.3.9
+ * Version: 1.4.0
  * Author: Tuend Work & Antigravity
  * Author URI: https://github.com/tuend-work
  * License: GPL2
@@ -16,7 +16,7 @@ if (!defined('WPINC')) {
     die;
 }
 
-define('UWO_VERSION', '1.3.9');
+define('UWO_VERSION', '1.4.0');
 define('UWO_PATH', str_replace('\\', '/', plugin_dir_path(__FILE__)));
 define('UWO_URL', plugin_dir_url(__FILE__));
 
