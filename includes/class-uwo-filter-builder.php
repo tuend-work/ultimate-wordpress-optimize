@@ -94,7 +94,7 @@ class FilterBuilder {
                         return strcasecmp($a->name, $b->name);
                     });
                     foreach ($terms as $term) {
-                        $mapped[$term->slug] = $term->name;
+                        $mapped[$term->slug] = $term->name . ' (' . $term->count . ')';
                     }
                 }
             }
@@ -137,7 +137,7 @@ class FilterBuilder {
             if ($column === 'primary_cat_id') {
                 $term = get_term((int)$val);
                 if ($term && !is_wp_error($term)) {
-                    $mapped[$val] = $term->name;
+                    $mapped[$val] = $term->name . ' (' . $term->count . ')';
                 } else {
                     $mapped[$val] = $val;
                 }
@@ -164,7 +164,7 @@ class FilterBuilder {
         $result = array();
         foreach ($current_level_terms as $term) {
             $prefix = $depth > 0 ? str_repeat('— ', $depth) : '';
-            $result[$term->slug] = $prefix . $term->name;
+            $result[$term->slug] = $prefix . $term->name . ' (' . $term->count . ')';
 
             if (isset($terms_by_parent[$term->term_id])) {
                 $children = $this->flatten_terms_hierarchical($terms_by_parent, $terms_by_parent[$term->term_id], $depth + 1);
