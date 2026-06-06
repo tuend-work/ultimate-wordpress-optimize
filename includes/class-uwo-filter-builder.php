@@ -57,8 +57,45 @@ class FilterBuilder {
             ));
             $mapped = array();
             if (!is_wp_error($terms) && !empty($terms)) {
-                foreach ($terms as $term) {
-                    $mapped[$term->slug] = $term->name;
+                if (is_taxonomy_hierarchical($column)) {
+                    $term_ids = array();
+                    foreach ($terms as $term) {
+                        $term_ids[$term->term_id] = true;
+                    }
+
+                    $terms_by_parent = array();
+                    $roots = array();
+                    foreach ($terms as $term) {
+                        if ($term->parent == 0 || !isset($term_ids[$term->parent])) {
+                            $roots[] = $term;
+                        } else {
+                            $terms_by_parent[$term->parent][] = $term;
+                        }
+                    }
+
+                    // Sort roots alphabetically
+                    usort($roots, function($a, $b) {
+                        return strcasecmp($a->name, $b->name);
+                    });
+
+                    // Sort each parent's children alphabetically
+                    foreach ($terms_by_parent as $parent_id => &$children) {
+                        usort($children, function($a, $b) {
+                            return strcasecmp($a->name, $b->name);
+                        });
+                    }
+                    unset($children);
+
+                    // Flatten starting from roots
+                    $mapped = $this->flatten_terms_hierarchical($terms_by_parent, $roots, 0);
+                } else {
+                    // Non-hierarchical taxonomy, sort alphabetically
+                    usort($terms, function($a, $b) {
+                        return strcasecmp($a->name, $b->name);
+                    });
+                    foreach ($terms as $term) {
+                        $mapped[$term->slug] = $term->name;
+                    }
                 }
             }
             return $mapped;
@@ -119,6 +156,26 @@ class FilterBuilder {
 
         return $mapped;
     }
+
+    /**
+     * Recursively flatten hierarchical terms and prepend dash based on depth.
+     */
+    private function flatten_terms_hierarchical($terms_by_parent, $current_level_terms, $depth) {
+        $result = array();
+        foreach ($current_level_terms as $term) {
+            $prefix = $depth > 0 ? str_repeat('— ', $depth) : '';
+            $result[$term->slug] = $prefix . $term->name;
+
+            if (isset($terms_by_parent[$term->term_id])) {
+                $children = $this->flatten_terms_hierarchical($terms_by_parent, $terms_by_parent[$term->term_id], $depth + 1);
+                foreach ($children as $child_slug => $child_name) {
+                    $result[$child_slug] = $child_name;
+                }
+            }
+        }
+        return $result;
+    }
+
 
     /**
      * Retrieve all custom filters.
